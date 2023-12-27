@@ -1,5 +1,17 @@
 # Manage Virtualization Hypervisor via ansible
 
+## Prepare environment
+
+```
+virtualenv .venv
+. .venv/bin/activate
+```
+```
+pip install -r requirements.txt
+ansible-galaxy collection install community.libvirt
+ansible-galaxy collection install community.general
+```
+
 ## Set up
 ```
 ansible-playbook -i <ip>, set-up.yml -u <username>

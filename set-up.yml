@@ -1,0 +1,96 @@
+---
+- hosts: all
+  become: yes
+
+  vars:
+    - desktop_interface: desktop0
+      
+  tasks:
+  - name: Ensure QEMU is installed.
+    package:
+      name: qemu-kvm
+      state: present
+    notify:
+      - Make sure USER is in QEMU group.
+
+  - name: Ensure Libvirt is installed.
+    package:
+      name:
+        - libvirt0
+        - python3-libvirt
+        - python3-lxml        
+        - libvirt-dev
+        - libvirt-clients
+        - libvirt-daemon
+        - libvirt-daemon-system
+        - bridge-utils
+      state: present
+    notify:
+      - Enable Libvirt.
+      
+  - name: Ensure Libvirt's default network is destroyed.
+    community.libvirt.virt_net:
+      name: default
+      state: absent
+
+  - name: Create dummy interface.
+    community.general.interfaces_file:
+      iface: "{{ desktop_interface }}"
+      address_family: inet
+      state: present
+    register: result
+
+  - name: Print return information from the previous task
+    ansible.builtin.debug:
+      var: result
+      verbosity: 2    
+  # - interfaces_file:
+  #       iface: "{{ desktop_interface }}"
+  #       option: description
+  #       value: 'Funny || name'
+        
+  - name: Restart networking.
+    service:
+      name: networking
+      state: restarted
+      enabled: true
+
+  # - name: debian | Restarting Network Interfaces
+  #   shell: bash -c "ifdown {{ desktop_interface }} --force && ifup {{ desktop_interface }} --force"
+  #   become: true
+  
+  - name: Create dummy interface pre-up script.
+    community.general.interfaces_file:
+      backup: true
+      iface: "{{ desktop_interface }}"
+      option: pre-up
+      value: "/sbin/ip link add {{ desktop_interface }} type dummy"
+
+  - name: Create dummy interface up script.
+    community.general.interfaces_file:
+      backup: true
+      iface: "{{ desktop_interface }}"
+      option: up
+      value: "/sbin/ip link set  {{ desktop_interface }} address {{ community.general.random_mac(seed=inventory_hostname) }}"
+
+  - name: Create dummy interface post-down script.
+    community.general.interfaces_file:
+      backup: true
+      iface: "{{ desktop_interface }}"
+      option: pre-up
+      value: "post-down /sbin/ip link del {{ desktop_interface }}"
+
+  handlers:
+  - name: Make sure USER is in QEMU group.
+    user:
+      name: "{{ ansible_user }}"
+      append: true
+      groups:
+        - kvm
+           
+  - name: Enable Libvirt.
+    service:
+      name: libvirtd
+      state: started
+      enabled: true
+     
