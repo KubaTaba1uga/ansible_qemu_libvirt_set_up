@@ -3,8 +3,11 @@
   become: yes
 
   vars:
-    - desktop_interface: desktop0
+    - desktop_interface: desktop
     - desktop_interface_path: "/etc/network/interfaces.d/{{ desktop_interface }}"
+    - public_bridge: pub0br
+    - public_bridge_ip: 10.13.0.1
+    - public_bridge_cidr: "{{ public_bridge_ip }}/16"
       
   tasks:
   - name: Ensure QEMU is installed.
@@ -12,7 +15,7 @@
       name: qemu-kvm
       state: present
     notify:
-      - Make sure USER is in QEMU group.
+      - Ensure USER is in QEMU groups.
 
   - name: Ensure Libvirt is installed.
     package:
@@ -38,32 +41,74 @@
     command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
     register: random_mac
 
-  - debug:
-      msg: "{{ random_mac }}"
-    
   - name: Create dummy interface.
     template:
-      src: "./desktop_interface"
+      src: "./templates/desktop_interface"
       dest: "{{ desktop_interface_path }}"
     with_items: "{{ random_mac['stdout'] }}"
+    notify:
+      - Restart networking.
     
-  - name: Restart networking.
-    service:
-      name: networking
-      state: restarted
-      enabled: true
+  - name: Ensure public bridge is created.
+    template:
+      src: "./templates/public_bridge"
+      dest: "/etc/network/interfaces.d/{{ public_bridge }}"
+    notify:
+      - Ensure ipv4 packets forwarding is enabled part 1.
+      - Ensure ipv4 packets forwarding is enabled part 2.
+      - Ensure ipv6 packets forwarding is disabled.      
+      
+  - name: Ensure iptables-persistent is installed.
+    package:
+      name: iptables-persistent
+      state: present
+      
+  - name: Render iptables' rules.
+    template:
+      src: "./templates/iptables_rules"
+      dest: "/etc/iptables/rules.v4"
+    notify:
+      - Restart iptables.
       
   handlers:
-  - name: Make sure USER is in QEMU group.
+  - name: Ensure USER is in QEMU groups.
     user:
       name: "{{ ansible_user }}"
       append: true
-      groups:
-        - kvm
+      groups: kvm,libvirt
            
   - name: Enable Libvirt.
     service:
       name: libvirtd
       state: started
       enabled: true
-     
+
+  - name: Restart iptables.
+    service:
+      name: iptables
+      state: restarted
+      enabled: true
+
+  - name: Restart networking.
+    service:
+      name: networking
+      state: restarted
+      enabled: true
+
+  - name: Ensure ipv4 packets forwarding is enabled part 1.
+    sysctl:
+      name: net.ipv4.ip_forward
+      value: 1
+      state: present
+
+  - name: Ensure ipv4 packets forwarding is enabled part 2.
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: 1
+      state: present
+
+  - name: Ensure ipv6 packets forwarding is disabled.
+    sysctl:
+      name: net.ipv6.conf.all.disable_ipv6
+      value: 1
+      state: present
