@@ -35,7 +35,7 @@
       state: absent
 
   - name: Generate random MAC address for dummy interface.
-    command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(5)]))'
+    command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
     register: random_mac
 
   - debug:
