@@ -4,6 +4,7 @@
 
   vars:
     - desktop_interface: desktop0
+    - desktop_interface_path: "/etc/network/interfaces.d/{{ desktop_interface }}"
       
   tasks:
   - name: Ensure QEMU is installed.
@@ -33,53 +34,25 @@
       name: default
       state: absent
 
-  - name: Create dummy interface.
-    community.general.interfaces_file:
-      iface: "{{ desktop_interface }}"
-      address_family: inet
-      state: present
-    register: result
+  - name: Generate random MAC address for dummy interface.
+    command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(5)]))'
+    register: random_mac
 
-  - name: Print return information from the previous task
-    ansible.builtin.debug:
-      var: result
-      verbosity: 2    
-  # - interfaces_file:
-  #       iface: "{{ desktop_interface }}"
-  #       option: description
-  #       value: 'Funny || name'
-        
+  - debug:
+      msg: "{{ random_mac }}"
+    
+  - name: Create dummy interface.
+    template:
+      src: "./desktop_interface"
+      dest: "{{ desktop_interface_path }}"
+    with_items: "{{ random_mac['stdout'] }}"
+    
   - name: Restart networking.
     service:
       name: networking
       state: restarted
       enabled: true
-
-  # - name: debian | Restarting Network Interfaces
-  #   shell: bash -c "ifdown {{ desktop_interface }} --force && ifup {{ desktop_interface }} --force"
-  #   become: true
-  
-  - name: Create dummy interface pre-up script.
-    community.general.interfaces_file:
-      backup: true
-      iface: "{{ desktop_interface }}"
-      option: pre-up
-      value: "/sbin/ip link add {{ desktop_interface }} type dummy"
-
-  - name: Create dummy interface up script.
-    community.general.interfaces_file:
-      backup: true
-      iface: "{{ desktop_interface }}"
-      option: up
-      value: "/sbin/ip link set  {{ desktop_interface }} address {{ community.general.random_mac(seed=inventory_hostname) }}"
-
-  - name: Create dummy interface post-down script.
-    community.general.interfaces_file:
-      backup: true
-      iface: "{{ desktop_interface }}"
-      option: pre-up
-      value: "post-down /sbin/ip link del {{ desktop_interface }}"
-
+      
   handlers:
   - name: Make sure USER is in QEMU group.
     user:
