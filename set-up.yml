@@ -129,7 +129,7 @@
     get_url:
       url: "{{ vyos_qcow_image_zip_link }}"
       dest: /tmp/vyos-1-4-qcow.zip
-      checksum: sha1:4c9d6b7c02ac7ce296a60617aada73ddd0a974c8
+      checksum: sha1:e87fe2541cbd79d5cee14cdf68ab51a001ea83d8
     register: router_image
 
   - name: Unarchive VyOs disk that is already on the remote machine.
