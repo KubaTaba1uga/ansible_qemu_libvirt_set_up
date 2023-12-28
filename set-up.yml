@@ -4,18 +4,17 @@
 
   vars:
     - desktop_interface: desktop
-    - desktop_interface_path: "/etc/network/interfaces.d/{{ desktop_interface }}"
     - public_bridge: pub0br
-    - public_bridge_ip: 10.13.0.1
+    - public_bridge_ip: 172.16.0.1
     - public_bridge_cidr: "{{ public_bridge_ip }}/16"
+    - router_public_ip: 172.16.0.2  
+    - vyos_qcow_image_zip_link: https://www.dropbox.com/scl/fi/njeajfptc7av9wk3g3kzf/vyos-1-4-qcow-image.zip?rlkey=xp6ndaq6j0gj8h5zqnxdupuex&dl=1
       
   tasks:
   - name: Ensure QEMU is installed.
     package:
       name: qemu-kvm
       state: present
-    notify:
-      - Ensure USER is in QEMU groups.
 
   - name: Ensure Libvirt is installed.
     package:
@@ -29,48 +28,7 @@
         - libvirt-daemon-system
         - bridge-utils
       state: present
-    notify:
-      - Enable Libvirt.
       
-  - name: Ensure Libvirt's default network is destroyed.
-    community.libvirt.virt_net:
-      name: default
-      state: absent
-
-  - name: Generate random MAC address for dummy interface.
-    command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
-    register: random_mac
-
-  - name: Create dummy interface.
-    template:
-      src: "./templates/desktop_interface"
-      dest: "{{ desktop_interface_path }}"
-    with_items: "{{ random_mac['stdout'] }}"
-    notify:
-      - Restart networking.
-    
-  - name: Ensure public bridge is created.
-    template:
-      src: "./templates/public_bridge"
-      dest: "/etc/network/interfaces.d/{{ public_bridge }}"
-    notify:
-      - Ensure ipv4 packets forwarding is enabled part 1.
-      - Ensure ipv4 packets forwarding is enabled part 2.
-      - Ensure ipv6 packets forwarding is disabled.      
-      
-  - name: Ensure iptables-persistent is installed.
-    package:
-      name: iptables-persistent
-      state: present
-      
-  - name: Render iptables' rules.
-    template:
-      src: "./templates/iptables_rules"
-      dest: "/etc/iptables/rules.v4"
-    notify:
-      - Restart iptables.
-      
-  handlers:
   - name: Ensure USER is in QEMU groups.
     user:
       name: "{{ ansible_user }}"
@@ -82,19 +40,45 @@
       name: libvirtd
       state: started
       enabled: true
+      
+  - name: Ensure Libvirt's default network is destroyed.
+    community.libvirt.virt_net:
+      name: default
+      state: absent
 
-  - name: Restart iptables.
-    service:
-      name: iptables
-      state: restarted
-      enabled: true
+  - name: Ensure public bridge is created.
+    template:
+      src: "./templates/public_bridge"
+      dest: "/etc/network/interfaces.d/{{ public_bridge }}"
+    register: bridge_result
+
+  # - name: Ensure private bridge is created.
+  #   template:
+  #     src: "./templates/private_bridge"
+  #     dest: "/etc/network/interfaces.d/{{ private_bridge }}"
+  #   notify:
+  #     - Ensure ipv4 packets forwarding is enabled part 1.
+  #     - Ensure ipv4 packets forwarding is enabled part 2.
+  #     - Ensure ipv6 packets forwarding is disabled.      
+  - name: Generate random MAC address for dummy interface.
+    command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
+    register: random_mac
+    when: bridge_result.changed
+
+  - name: Create dummy interface.
+    template:
+      src: "./templates/desktop_interface"
+      dest: "/etc/network/interfaces.d/{{ desktop_interface }}"
+    with_items: "{{ random_mac['stdout'] }}"
+    when: random_mac.changed    
 
   - name: Restart networking.
     service:
       name: networking
       state: restarted
       enabled: true
-
+    when: bridge_result.changed
+    
   - name: Ensure ipv4 packets forwarding is enabled part 1.
     sysctl:
       name: net.ipv4.ip_forward
@@ -112,3 +96,74 @@
       name: net.ipv6.conf.all.disable_ipv6
       value: 1
       state: present
+  
+  - name: Ensure iptables-persistent is installed.
+    package:
+      name: iptables-persistent
+      state: present
+      
+  - name: Render iptables' rules.
+    template:
+      src: "./templates/iptables_rules"
+      dest: "/etc/iptables/rules.v4"
+
+  - name: Restart iptables.
+    service:
+      name: iptables
+      state: restarted
+      enabled: true 
+
+  - name: Ensure VyOs disk image's zip is downloaded.
+    get_url:
+      url: "{{ vyos_qcow_image_zip_link }}"
+      dest: /tmp/vyos-1-4-qcow.zip
+      checksum: sha1:6f266bf4de847d43f188effb053b549d05942ef5
+    
+  - name: Ensure ZIP is installed.
+    package:
+      name:
+        - zip
+        - unzip
+      state: present
+      
+  - name: Unarchive VyOs disk that is already on the remote machine.
+    unarchive:
+      src: /tmp/vyos-1-4-qcow.zip
+      dest: /var/lib/libvirt/images
+      list_files: true
+      remote_src: yes
+    register: vyos_images
+
+  - name: Create VM's directory if it does not exist.
+    file:
+      path: /VMs/
+      state: directory
+      mode: '0755'
+
+  - name: Create VM's definitions directory if it does not exist.
+    file:
+      path: /VMs/definitions
+      state: directory
+      mode: '0755'
+    
+  - name: Render router's definition.
+    template:
+      src: "./templates/router_VM.xml"
+      dest: "/VMs/definitions/router_VM.xml"
+    register: template
+
+  - debug: var=template
+    
+  - name: Define router VM.
+    community.libvirt.virt:
+      command: define
+      xml: "{{ lookup('template', 'router_VM.xml') }}"
+    register: vm_info
+    
+  - name: Start router VM.
+    community.libvirt.virt:
+      name: VyOs-router
+      state: running
+
+  - debug: var=vm_info
+      

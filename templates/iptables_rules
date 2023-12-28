@@ -37,6 +37,7 @@ COMMIT
 -A INPUT -i {{ public_bridge }} -p udp -m udp -m multiport --dports 53,67 -j ACCEPT
 -A INPUT -i {{ public_bridge }} -p tcp -m tcp -m multiport --dports 53,67 -j ACCEPT
 ## Allow packets that have been forwarded to particular ports on the VM.
+# -A FORWARD -s 1.1.1.1/32 -d 10.0.0.77/32 -p all -j ACCEPT
 # -A FORWARD -d 10.0.0.77/32 -o {{ public_bridge }} -p tcp -m tcp --syn -m conntrack --ctstate NEW -m multiport --dports 22,80,443 -j ACCEPT
 # Reject everything else.
 -A FORWARD -i {{ public_bridge }} -j REJECT --reject-with icmp-port-unreachable
