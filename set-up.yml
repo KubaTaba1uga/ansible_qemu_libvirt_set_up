@@ -3,12 +3,14 @@
   become: yes
 
   vars:
+    - force_rebuild: true
     - desktop_interface: desktop
     - public_bridge: pub0br
     - public_bridge_ip: 172.16.0.1
     - public_bridge_cidr: "{{ public_bridge_ip }}/16"
     - router_public_ip: 172.16.0.2  
     - vyos_qcow_image_zip_link: https://www.dropbox.com/scl/fi/njeajfptc7av9wk3g3kzf/vyos-1-4-qcow-image.zip?rlkey=xp6ndaq6j0gj8h5zqnxdupuex&dl=1
+    - vyos_vm_name: VyOs-router
       
   tasks:
   - name: Ensure QEMU is installed.
@@ -60,6 +62,7 @@
   #     - Ensure ipv4 packets forwarding is enabled part 1.
   #     - Ensure ipv4 packets forwarding is enabled part 2.
   #     - Ensure ipv6 packets forwarding is disabled.      
+
   - name: Generate random MAC address for dummy interface.
     command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
     register: random_mac
@@ -106,18 +109,14 @@
     template:
       src: "./templates/iptables_rules"
       dest: "/etc/iptables/rules.v4"
-
+    register: iptables_render_result
+    
   - name: Restart iptables.
     service:
       name: iptables
       state: restarted
       enabled: true 
-
-  - name: Ensure VyOs disk image's zip is downloaded.
-    get_url:
-      url: "{{ vyos_qcow_image_zip_link }}"
-      dest: /tmp/vyos-1-4-qcow.zip
-      checksum: sha1:6f266bf4de847d43f188effb053b549d05942ef5
+    when: iptables_render_result.changed
     
   - name: Ensure ZIP is installed.
     package:
@@ -125,7 +124,14 @@
         - zip
         - unzip
       state: present
-      
+
+  - name: Ensure VyOs disk image's zip is downloaded.
+    get_url:
+      url: "{{ vyos_qcow_image_zip_link }}"
+      dest: /tmp/vyos-1-4-qcow.zip
+      checksum: sha1:4c9d6b7c02ac7ce296a60617aada73ddd0a974c8
+    register: router_image
+
   - name: Unarchive VyOs disk that is already on the remote machine.
     unarchive:
       src: /tmp/vyos-1-4-qcow.zip
@@ -133,7 +139,8 @@
       list_files: true
       remote_src: yes
     register: vyos_images
-
+    when: router_image.changed or force_rebuild
+    
   - name: Create VM's directory if it does not exist.
     file:
       path: /VMs/
@@ -151,19 +158,30 @@
       src: "./templates/router_VM.xml"
       dest: "/VMs/definitions/router_VM.xml"
     register: template
+    when: router_image.changed or force_rebuild
 
-  - debug: var=template
-    
+  - name: List all VMs
+    community.libvirt.virt:
+      command: list_vms
+    register: all_vms    
+
+  - name: Destroy router VM if it does exsist.
+    community.libvirt.virt:
+      name: "{{ vyos_vm_name }}"
+      command: undefine
+      force: true
+    when: (router_image.changed or force_rebuild) and (all_vms.list_vms is contains(vyos_vm_name))
+
   - name: Define router VM.
     community.libvirt.virt:
       command: define
       xml: "{{ lookup('template', 'router_VM.xml') }}"
-    register: vm_info
-    
+    when: router_image.changed or force_rebuild
+
   - name: Start router VM.
     community.libvirt.virt:
-      name: VyOs-router
+      name: "{{ vyos_vm_name }}"
       state: running
+      autostart: true
+    when: router_image.changed or force_rebuild
 
-  - debug: var=vm_info
-      

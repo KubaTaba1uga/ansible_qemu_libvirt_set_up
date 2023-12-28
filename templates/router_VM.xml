@@ -1,5 +1,5 @@
 <domain type='kvm'>
-  <name>VyOs-router</name>
+  <name>{{ vyos_vm_name }}</name>
   <memory>219200</memory>
   <currentMemory>219200</currentMemory>
   <vcpu>2</vcpu>
@@ -7,8 +7,26 @@
     <type arch='x86_64' machine='pc'>hvm</type>
     <boot dev='hd'/>
   </os>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>destroy</on_crash>
+  <features>
+    <acpi/>
+    <apic/>
+    <vmport state="off"/>
+  </features>
+  <pm>
+    <suspend-to-disk enabled="no"/>
+    <suspend-to-memory enabled="no"/>
+  </pm>
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
+
+    <channel type="unix">
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+      <address type="virtio-serial" controller="0" bus="0" port="1"/>
+    </channel>
+    
     <disk type='file' device='disk'>
       <source file='{{ vyos_images["dest"] }}/{{ vyos_images["files"][0] }}'/>
       <target dev='hda'/>
@@ -16,13 +34,12 @@
     <interface type="bridge">
       <mac address="52:54:00:e4:2c:b7"/>
       <source bridge="{{ public_bridge }}"/>
-      <mac address="52:54:00:e4:2c:b7"/>      
       <model type="virtio"/>
-      <address type="pci" domain="0x0000" bus="0x01" slot="0x01" function="0x0"/>
+      <address type="pci" domain="0x0000" bus="0x01" slot="0x01" function="0x00"/>
     </interface>
-    <channel type="unix">
-      <target type="virtio" name="org.qemu.guest_agent.0"/>
-      <address type="virtio-serial" controller="0" bus="0" port="1"/>
-    </channel>
+
+    <input type="mouse" bus="ps2"/>
+    <graphics type="vnc" port="-1" listen="127.0.0.1"/>    
+    
   </devices>
 </domain>
