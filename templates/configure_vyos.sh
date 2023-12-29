@@ -19,3 +19,4 @@ expect <<EOF
   expect "vyos@vyos*" {send "exit\r"}
 
 EOF
+
