@@ -16,6 +16,6 @@ expect <<EOF
   expect "Which one should be used for installation\?*" {send "\r"}
   expect "Installation will delete all data on the drive. Continue\?*" {send "y\r"}
   expect "Would you like to use all the free space on the drive\?*" {send "y\r"}
-  expect "vyos@vyos*" {send "reboot now\r"}
+  expect "vyos@vyos:" {send "reboot now\r"}
 
 EOF

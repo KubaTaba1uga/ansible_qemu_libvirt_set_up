@@ -206,7 +206,19 @@
 
             - name: Run VyOs installation script.
               command: "/VMs/install_vyos.sh"
+              when: vm_running.changed
               
+            - name: Shutdown router VM.
+              community.libvirt.virt:
+                name: "{{ vyos_vm_name }}"
+                state: shutdown
+                autostart: true
+              when: vm_running.changed        
+
+            - name: Waiting for router VM to load.
+              pause: seconds=5
+              when: vm_running.changed        
+
             - name: Start router VM.
               community.libvirt.virt:
                 name: "{{ vyos_vm_name }}"

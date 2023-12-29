@@ -5,9 +5,9 @@ expect <<EOF
   set timeout 120
   spawn virsh console {{ vyos_vm_name }} --force
 
-  expect "Escape character is"  {send "\r"}
-  expect "vyos login:"  {send "vyos\r"}
-  expect "Password:"  {send "vyos\r"}
+  expect "Escape character is*"  {send "\r"}
+  expect "vyos login:*"  {send "vyos\r"}
+  expect "Password:*"  {send "vyos\r"}
   expect "vyos@vyos:" {send "configure\r"}
   expect "vyos@vyos*" {send "set interfaces ethernet eth0 address {{ router_public_ip }} \r"}
   expect "vyos@vyos*" {send "set system name-server 1.1.1.1 \r"}
