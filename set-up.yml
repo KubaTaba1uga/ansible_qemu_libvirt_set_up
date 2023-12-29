@@ -10,7 +10,7 @@
     - public_bridge_cidr: "{{ public_bridge_ip }}/24"
     - private_bridge: priv0br      
     - private_bridge_ip: 172.16.133.1
-    - private_bridge_cidr: "{{ public_bridge_ip }}/24"      
+    - private_bridge_cidr: "{{ private_bridge_ip }}/24"      
     - router_public_ip: 172.16.0.2/24
     - router_private_ip: 172.16.133.2/24      
     - vyos_iso_link: https://www.dropbox.com/scl/fi/vn3sg0y1mtfb38n9qf5kl/vyos-1-4-live.iso?rlkey=yup5rw1nd9eq2xbhzd1ivf4a2&dl=1
