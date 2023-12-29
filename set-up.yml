@@ -14,202 +14,202 @@
     - vyos_vm_name: VyOs-router
       
   tasks:
-  - name: Ensure QEMU is installed.
-    package:
-      name: qemu-kvm
-      state: present
-
-  - name: Ensure Libvirt is installed.
-    package:
-      name:
-        - libvirt0
-        - python3-libvirt
-        - python3-lxml        
-        - libvirt-dev
-        - libvirt-clients
-        - libvirt-daemon
-        - libvirt-daemon-system
-        - bridge-utils
-      state: present
-      
-  - name: Ensure USER is in QEMU groups.
-    user:
-      name: "{{ ansible_user }}"
-      append: true
-      groups: kvm,libvirt
-           
-  - name: Enable Libvirt.
-    service:
-      name: libvirtd
-      state: started
-      enabled: true
-      
-  - name: Ensure Libvirt's default network is destroyed.
-    community.libvirt.virt_net:
-      name: default
-      state: absent
-
-  - name: Ensure public bridge is created.
-    template:
-      src: "./templates/public_bridge"
-      dest: "/etc/network/interfaces.d/{{ public_bridge }}"
-    register: bridge_result
-
-  # - name: Ensure private bridge is created.
-  #   template:
-  #     src: "./templates/private_bridge"
-  #     dest: "/etc/network/interfaces.d/{{ private_bridge }}"
-  #   notify:
-  #     - Ensure ipv4 packets forwarding is enabled part 1.
-  #     - Ensure ipv4 packets forwarding is enabled part 2.
-  #     - Ensure ipv6 packets forwarding is disabled.      
-
-  - name: Generate random MAC address for dummy interface.
-    command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
-    register: random_mac
-    when: bridge_result.changed
-
-  - name: Create dummy interface.
-    template:
-      src: "./templates/desktop_interface"
-      dest: "/etc/network/interfaces.d/{{ desktop_interface }}"
-    with_items: "{{ random_mac['stdout'] }}"
-    when: random_mac.changed    
-
-  - name: Restart networking.
-    service:
-      name: networking
-      state: restarted
-      enabled: true
-    when: bridge_result.changed
-    
-  - name: Ensure ipv4 packets forwarding is enabled part 1.
-    sysctl:
-      name: net.ipv4.ip_forward
-      value: 1
-      state: present
-
-  - name: Ensure ipv4 packets forwarding is enabled part 2.
-    sysctl:
-      name: net.ipv4.conf.all.forwarding
-      value: 1
-      state: present
-
-  - name: Ensure ipv6 packets forwarding is disabled.
-    sysctl:
-      name: net.ipv6.conf.all.disable_ipv6
-      value: 1
-      state: present
-  
-  - name: Ensure iptables-persistent is installed.
-    package:
-      name: iptables-persistent
-      state: present
-      
-  - name: Render iptables' rules.
-    template:
-      src: "./templates/iptables_rules"
-      dest: "/etc/iptables/rules.v4"
-    register: iptables_render_result
-    
-  - name: Restart iptables.
-    service:
-      name: iptables
-      state: restarted
-      enabled: true 
-    when: iptables_render_result.changed
-    
-  - name: Ensure ZIP is installed.
-    package:
-      name:
-        - zip
-        - unzip
-      state: present
-    
-  - name: Create VM's directory if it does not exist.
-    file:
-      path: /VMs/
-      state: directory
-      mode: '0777'
-
-  - name: Create VM's images directory if it does not exist.
-    file:
-      path: /VMs/images
-      state: directory
-      mode: '0777'
-    
-  - name: List all VMs
-    community.libvirt.virt:
-      command: list_vms
-    register: all_vms    
-
-  - name: Ensure virt-install is installed.
-    package:
-      name: virtinst
-      state: present
-
-  - name: Ensure expect is installed.      
-    package:
-      name: expect
-      state: present
-      
-  - name: Ensure VyOs disk image's zip is downloaded.
-    get_url:
-      url: "{{ vyos_qcow_image_zip_link }}"
-      dest: /tmp/vyos-1-4-qcow.zip
-      checksum: "{{ vyos_qcow_image_zip_checksum }}"
-      mode: '0777'
-    register: router_image
-
-  - set_fact:
-      user:  "{{ ansible_user }}"
-      
-  - name: Create and configure router VM.
-    when: router_image.changed or force_rebuild
-    # become_user: "{{ user }}"
-    block:
-      - name: Unarchive VyOs disk that is already on the remote machine.
-        unarchive:
-          src: /tmp/vyos-1-4-qcow.zip
-          dest: /VMs/images
-          list_files: true
-          remote_src: yes
-        register: vyos_images
-
-      - name: Copy VyOs installation script.
-        copy:
-          src: "./templates/configure_vyos.sh"
-          dest: "/VMs/configure_vyos.sh"
-          mode: '0777'        
+    - name: Run the equivalent of "apt-get update" as a separate step.
+      ansible.builtin.apt:
+        update_cache: yes
         
-      - name: Create router VM.
-        command: virt-install -n "{{ vyos_vm_name }}"
-                    --ram 2048
-                    --vcpus 2
-                    --os-variant debian9
-                    --network bridge="{{ public_bridge }}"
-                    --graphics vnc
-                    --hvm
-                    --virt-type kvm
-                    --disk path={{ vyos_images["dest"] }}/{{ vyos_images["files"][0] }},bus=virtio
-                    --disk path=/VMs/configure_vyos.sh,format=raw,cache=none,io=native,bus=virtio,perms=ro
-                    --import
-                    --noautoconsole
-        when: vyos_vm_name not in all_vms.list_vms
-
-      - name: Start router VM.
-        community.libvirt.virt:
-          name: "{{ vyos_vm_name }}"
-          state: running
-          autostart: true
-        register: vm_running
-
-      - name: Waiting for router VM to load.
-        pause: seconds=30
-        when: vm_running.changed        
+    - name: Ensure Virt-manager is installed.
+      package:
+        name: virt-manager
+        state: present
+      
+    - name: Install Qemu+Libvirt.
+      block:
+        - name: Ensure QEMU is installed.
+          package:
+            name: qemu-kvm
+            state: present
             
-  - name: Ensure Virt-manager is installed.
-    package:
-      name: virt-manager
-      state: present
-    
+        - name: Ensure Libvirt is installed.
+          package:
+            name:
+              - libvirt0
+              - python3-libvirt
+              - python3-lxml        
+              - libvirt-dev
+              - libvirt-clients
+              - libvirt-daemon
+              - libvirt-daemon-system
+              - bridge-utils
+              - libguestfs-tools
+            state: present
+
+        - name: Ensure USER is in QEMU groups.
+          user:
+            name: "{{ ansible_user }}"
+            append: true
+            groups: kvm,libvirt
+
+        - name: Enable Libvirt.
+          service:
+            name: libvirtd
+            state: started
+            enabled: true
+
+        - name: Ensure Libvirt's default network is destroyed.
+          community.libvirt.virt_net:
+            name: default
+            state: absent
+
+        - name: Ensure virt-install is installed.
+          package:
+            name: virtinst
+            state: present
+            
+    - name: Configure networking.
+      block:
+        - name: Ensure public bridge is created.
+          template:
+            src: "./templates/public_bridge"
+            dest: "/etc/network/interfaces.d/{{ public_bridge }}"
+          register: bridge_result
+
+        - name: Generate random MAC address for dummy interface.
+          command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
+          register: random_mac
+          when: bridge_result.changed
+
+        - name: Create dummy interface.
+          template:
+            src: "./templates/desktop_interface"
+            dest: "/etc/network/interfaces.d/{{ desktop_interface }}"
+          with_items: "{{ random_mac['stdout'] }}"
+          when: random_mac.changed    
+
+        - name: Restart networking.
+          service:
+            name: networking
+            state: restarted
+            enabled: true
+          when: bridge_result.changed
+
+        - name: Ensure ipv4 packets forwarding is enabled part 1.
+          sysctl:
+            name: net.ipv4.ip_forward
+            value: 1
+            state: present
+
+        - name: Ensure ipv4 packets forwarding is enabled part 2.
+          sysctl:
+            name: net.ipv4.conf.all.forwarding
+            value: 1
+            state: present
+
+        - name: Ensure ipv6 packets forwarding is disabled.
+          sysctl:
+            name: net.ipv6.conf.all.disable_ipv6
+            value: 1
+            state: present
+
+        - name: Ensure iptables-persistent is installed.
+          package:
+            name: iptables-persistent
+            state: present
+
+        - name: Render iptables' rules.
+          template:
+            src: "./templates/iptables_rules"
+            dest: "/etc/iptables/rules.v4"
+          register: iptables_render_result
+
+        - name: Restart iptables.
+          service:
+            name: iptables
+            state: restarted
+            enabled: true 
+          when: iptables_render_result.changed
+
+    - name: Configure Libvirt.
+      block:
+        - name: Ensure ZIP is installed.
+          package:
+            name:
+              - zip
+              - unzip
+            state: present
+
+        - name: Ensure expect is installed.
+          package:
+            name:
+              - expect
+            state: present
+
+        - name: Create VM's directory if it does not exist.
+          file:
+            path: /VMs/
+            state: directory
+            mode: '0777'
+
+        - name: Create VM's images directory if it does not exist.
+          file:
+            path: /VMs/images
+            state: directory
+            mode: '0777'
+
+        - name: List all VMs
+          community.libvirt.virt:
+            command: list_vms
+          register: all_vms    
+
+        - name: Ensure VyOs disk image's zip is downloaded.
+          get_url:
+            url: "{{ vyos_qcow_image_zip_link }}"
+            dest: /tmp/vyos-1-4-qcow.zip
+            checksum: "{{ vyos_qcow_image_zip_checksum }}"
+            mode: '0777'
+          register: router_image
+
+        - name: Create and configure router VM.
+          when: router_image.changed or force_rebuild
+          block:
+            - name: Unarchive VyOs disk that is already on the remote machine.
+              unarchive:
+                src: /tmp/vyos-1-4-qcow.zip
+                dest: /VMs/images
+                list_files: true
+                remote_src: yes
+              register: vyos_images
+
+            - name: Create router VM.
+              command: virt-install -n "{{ vyos_vm_name }}"
+                          --ram 2048
+                          --vcpus 2
+                          --os-variant debian9
+                          --network bridge="{{ public_bridge }}"
+                          --graphics vnc
+                          --hvm
+                          --virt-type kvm
+                          --disk path={{ vyos_images["dest"] }}/{{ vyos_images["files"][0] }},bus=virtio
+                          --import
+                          --noautoconsole
+              when: vyos_vm_name not in all_vms.list_vms
+
+            - name: Start router VM.
+              community.libvirt.virt:
+                name: "{{ vyos_vm_name }}"
+                state: running
+                autostart: true
+              register: vm_running
+
+            - name: Waiting for router VM to load.
+              pause: seconds=30
+              when: vm_running.changed        
+
+            - name: Copy VyOs installation script.
+              template:
+                src: "./templates/configure_vyos.sh"
+                dest: "/VMs/configure_vyos.sh"
+                mode: '0777'        
+
+            - name: Run VyOs installation script.
+              command: "/VMs/configure_vyos.sh"
