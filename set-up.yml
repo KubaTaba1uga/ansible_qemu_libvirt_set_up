@@ -167,10 +167,10 @@
             dest: /tmp/vyos.iso
             checksum: "{{ vyos_iso_checksum }}"
             mode: '0777'
-          register: router_image
+          register: router_iso
 
         - name: Create and configure router VM.
-          when: router_image.changed or force_rebuild
+          when: router_iso.changed or force_rebuild
           block:
             - name: Create router VM.
               command: virt-install -n "{{ vyos_vm_name }}"
@@ -185,50 +185,47 @@
                           --cdrom /tmp/vyos.iso
                           --noautoconsole
               when: vyos_vm_name not in all_vms.list_vms
-
-            - name: Start router VM.
-              community.libvirt.virt:
-                name: "{{ vyos_vm_name }}"
-                state: running
-                autostart: true
-              register: vm_running
-
-            - name: Waiting for router VM to load.
-              pause: seconds=30
-              when: vm_running.changed        
-
-            - name: Copy VyOs installation script.
-              template:
-                src: "./templates/install_vyos.sh"
-                dest: "/VMs/install_vyos.sh"
-                mode: '0777'        
-              when: vm_running.changed
-
-            - name: Run VyOs installation script.
-              command: "/VMs/install_vyos.sh"
-              when: vm_running.changed
+              register: vm_created
               
-            - name: Shutdown router VM.
-              community.libvirt.virt:
-                name: "{{ vyos_vm_name }}"
-                state: shutdown
-                autostart: true
-              when: vm_running.changed        
-
-            - name: Waiting for router VM to load.
-              pause: seconds=5
-              when: vm_running.changed        
-
             - name: Start router VM.
               community.libvirt.virt:
                 name: "{{ vyos_vm_name }}"
                 state: running
                 autostart: true
-              when: vm_running.changed        
+              register: vm_started
+
+            - name: Install router from iso.
+              when: vm_created.changed
+              block:
+                - name: Waiting for router VM to load.
+                  pause: seconds=30
+
+                - name: Copy VyOs installation script.
+                  template:
+                    src: "./templates/install_vyos.sh"
+                    dest: "/VMs/install_vyos.sh"
+                    mode: '0777'        
+
+                - name: Run VyOs installation script.
+                  command: "/VMs/install_vyos.sh"
+
+                - name: Shutdown router VM.
+                  community.libvirt.virt:
+                    name: "{{ vyos_vm_name }}"
+                    state: shutdown
+
+                - name: Waiting for router VM to load.
+                  pause: seconds=3
+
+                - name: Start router VM.
+                  community.libvirt.virt:
+                    name: "{{ vyos_vm_name }}"
+                    state: running
+                    autostart: true
 
             - name: Waiting for router VM to load.
               pause: seconds=30
-              when: vm_running.changed        
+              when: vm_created.changed or vm_started.changed
               
             - name: Copy VyOs configuration script.
               template:
