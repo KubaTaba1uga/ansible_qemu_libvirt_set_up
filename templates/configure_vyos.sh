@@ -10,6 +10,7 @@ expect <<EOF
   expect "Password:*"  {send "vyos\r"}
   expect "vyos@vyos:" {send "configure\r"}
   expect "vyos@vyos*" {send "set interfaces ethernet eth0 address {{ router_public_ip }} \r"}
+  expect "vyos@vyos*" {send "set interfaces ethernet eth1 address {{ router_private_ip }} \r"}
   expect "vyos@vyos*" {send "set system name-server 1.1.1.1 \r"}
   expect "vyos@vyos*" {send "set system host-name {{ vyos_vm_name }} \r"}
   expect "vyos@vyos*" {send "commit \r"}

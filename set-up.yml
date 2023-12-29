@@ -5,10 +5,14 @@
   vars:
     - force_rebuild: true
     - desktop_interface: desktop
-    - public_bridge: pub0br
+    - public_bridge: pub0br      
     - public_bridge_ip: 172.16.0.1
-    - public_bridge_cidr: "{{ public_bridge_ip }}/16"
-    - router_public_ip: 172.16.0.2/16
+    - public_bridge_cidr: "{{ public_bridge_ip }}/24"
+    - private_bridge: priv0br      
+    - private_bridge_ip: 172.16.133.1
+    - private_bridge_cidr: "{{ public_bridge_ip }}/24"      
+    - router_public_ip: 172.16.0.2/24
+    - router_private_ip: 172.16.133.2/24      
     - vyos_iso_link: https://www.dropbox.com/scl/fi/vn3sg0y1mtfb38n9qf5kl/vyos-1-4-live.iso?rlkey=yup5rw1nd9eq2xbhzd1ivf4a2&dl=1
     - vyos_iso_checksum: sha1:61694c7c2c89643b64c79fa78a84a242b8f8ebf1
     - vyos_vm_name: VyOs-router
@@ -73,6 +77,11 @@
             src: "./templates/public_bridge"
             dest: "/etc/network/interfaces.d/{{ public_bridge }}"
           register: bridge_result
+
+        - name: Ensure private bridge is created.
+          template:
+            src: "./templates/private_bridge"
+            dest: "/etc/network/interfaces.d/{{ private_bridge }}"
 
         - name: Generate random MAC address for dummy interface.
           command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
@@ -171,6 +180,7 @@
                           --vcpus 2
                           --os-variant debian9
                           --network bridge="{{ public_bridge }}"
+                          --network bridge="{{ private_bridge }}"                          
                           --graphics vnc
                           --hvm
                           --virt-type kvm

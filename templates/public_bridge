@@ -1,5 +1,5 @@
 auto {{ public_bridge }}
 iface {{ public_bridge }} inet static
   bridge_ports {{ desktop_interface }}
-  address {{ public_bridge_ip }}
-  netmask 255.255.255.0
+  address {{ public_bridge_cidr }}
+
