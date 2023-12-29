@@ -9,8 +9,8 @@
     - public_bridge_ip: 172.16.0.1
     - public_bridge_cidr: "{{ public_bridge_ip }}/16"
     - router_public_ip: 172.16.0.2/16
-    - vyos_qcow_image_zip_link: https://www.dropbox.com/scl/fi/njeajfptc7av9wk3g3kzf/vyos-1-4-qcow-image.zip?rlkey=xp6ndaq6j0gj8h5zqnxdupuex&dl=1
-    - vyos_qcow_image_zip_checksum: sha1:45ae4d6d48d884c9c54a8d6274dcfc294f6a0c46
+    - vyos_iso_link: https://www.dropbox.com/scl/fi/vn3sg0y1mtfb38n9qf5kl/vyos-1-4-live.iso?rlkey=yup5rw1nd9eq2xbhzd1ivf4a2&dl=1
+    - vyos_iso_checksum: sha1:61694c7c2c89643b64c79fa78a84a242b8f8ebf1
     - vyos_vm_name: VyOs-router
       
   tasks:
@@ -161,25 +161,17 @@
             command: list_vms
           register: all_vms    
 
-        - name: Ensure VyOs disk image's zip is downloaded.
+        - name: Ensure VyOs iso is downloaded.
           get_url:
-            url: "{{ vyos_qcow_image_zip_link }}"
-            dest: /tmp/vyos-1-4-qcow.zip
-            checksum: "{{ vyos_qcow_image_zip_checksum }}"
+            url: "{{ vyos_iso_link }}"
+            dest: /tmp/vyos.iso
+            checksum: "{{ vyos_iso_checksum }}"
             mode: '0777'
           register: router_image
 
         - name: Create and configure router VM.
           when: router_image.changed or force_rebuild
           block:
-            - name: Unarchive VyOs disk that is already on the remote machine.
-              unarchive:
-                src: /tmp/vyos-1-4-qcow.zip
-                dest: /VMs/images
-                list_files: true
-                remote_src: yes
-              register: vyos_images
-
             - name: Create router VM.
               command: virt-install -n "{{ vyos_vm_name }}"
                           --ram 2048
@@ -189,8 +181,8 @@
                           --graphics vnc
                           --hvm
                           --virt-type kvm
-                          --disk path={{ vyos_images["dest"] }}/{{ vyos_images["files"][0] }},bus=virtio
-                          --import
+                          --disk path=/VMs/images/vyos-router.qcow2,bus=virtio,size=10
+                          --cdrom /tmp/vyos.iso
                           --noautoconsole
               when: vyos_vm_name not in all_vms.list_vms
 
@@ -207,9 +199,32 @@
 
             - name: Copy VyOs installation script.
               template:
+                src: "./templates/install_vyos.sh"
+                dest: "/VMs/install_vyos.sh"
+                mode: '0777'        
+              when: vm_running.changed
+
+            - name: Run VyOs installation script.
+              command: "/VMs/install_vyos.sh"
+              
+            - name: Start router VM.
+              community.libvirt.virt:
+                name: "{{ vyos_vm_name }}"
+                state: running
+                autostart: true
+              when: vm_running.changed        
+
+            - name: Waiting for router VM to load.
+              pause: seconds=30
+              when: vm_running.changed        
+              
+            - name: Copy VyOs configuration script.
+              template:
                 src: "./templates/configure_vyos.sh"
                 dest: "/VMs/configure_vyos.sh"
                 mode: '0777'        
-
-            - name: Run VyOs installation script.
+              
+            - name: Run VyOs configuration script.
               command: "/VMs/configure_vyos.sh"
+
+              
