@@ -131,13 +131,6 @@
 
     - name: Configure Libvirt.
       block:
-        - name: Ensure ZIP is installed.
-          package:
-            name:
-              - zip
-              - unzip
-            state: present
-
         - name: Ensure expect is installed.
           package:
             name:
@@ -214,7 +207,7 @@
                     name: "{{ vyos_vm_name }}"
                     state: shutdown
 
-                - name: Waiting for router VM to load.
+                - name: Waiting for router VM to shutdown.
                   pause: seconds=3
 
                 - name: Start router VM.
