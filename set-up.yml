@@ -251,26 +251,3 @@
                 search_string: 'nameserver {{ router_private_ip }}'
                 line: 'nameserver {{ router_private_ip }}'
               
-        - name: Ensure Parrot iso is downloaded.
-          get_url:
-            url: "https://deb.parrot.sh/parrot/iso/5.3/Parrot-security-5.3_amd64.iso"
-            dest: /VMs/isos/parrot.iso
-            mode: '0777'
-
-        - name: Create parrot VM.
-          command: virt-install -n parrot
-                          --ram 2048
-                          --vcpus 2
-                          --os-variant debian9
-                          --network bridge="{{ private_bridge }}"                          
-                          --graphics vnc
-                          --hvm
-                          --virt-type kvm
-                          --cdrom /VMs/isos/parrot.iso
-                          --noautoconsole
-                          --disk none
-                          
-        - name: Ensure Wireshark is installed.
-          package:
-            name: wireshark
-            state: present
