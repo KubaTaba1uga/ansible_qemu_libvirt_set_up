@@ -8,6 +8,8 @@
     - public_bridge: pub0br
     - private_bridge: priv0br
     - ip_cidr_netmask: 16
+    - public_network_ip: 172.16.0.0
+    - private_network_ip: 172.31.0.0
     - public_bridge_ip: 172.16.0.1
     - private_bridge_ip: 172.31.0.1
     - router_public_ip: 172.16.0.2
@@ -246,3 +248,26 @@
               command: "/VMs/configure_vyos.sh"
 
               
+        - name: Ensure Parrot iso is downloaded.
+          get_url:
+            url: "https://deb.parrot.sh/parrot/iso/5.3/Parrot-security-5.3_amd64.iso"
+            dest: /VMs/isos/parrot.iso
+            mode: '0777'
+
+        - name: Create parrot VM.
+          command: virt-install -n parrot
+                          --ram 2048
+                          --vcpus 2
+                          --os-variant debian9
+                          --network bridge="{{ private_bridge }}"                          
+                          --graphics vnc
+                          --hvm
+                          --virt-type kvm
+                          --cdrom /VMs/isos/parrot.iso
+                          --noautoconsole
+                          --disk none
+                          
+        - name: Ensure Wireshark is installed.
+          package:
+            name: wireshark
+            state: present

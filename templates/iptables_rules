@@ -15,12 +15,12 @@ COMMIT
 :OUTPUT ACCEPT [0:0]
 :POSTROUTING ACCEPT [0:0]
 ## Do not masquerade to these reserved address blocks.
-# -A POSTROUTING -s {{ public_bridge_ip }}/{{ ip_cidr_netmask }} -d 224.0.0.0/24 -j RETURN
-# -A POSTROUTING -s {{ public_bridge_ip }}/{{ ip_cidr_netmask }} -d 255.255.255.255/32 -j RETURN
+# -A POSTROUTING -s {{ public_network_ip }}/{{ ip_cidr_netmask }} -d 224.0.0.0/24 -j RETURN
+# -A POSTROUTING -s {{ public_network_ip }}/{{ ip_cidr_netmask }} -d 255.255.255.255/32 -j RETURN
 # Masquerade all packets going from VMs to the LAN/Internet.
--A POSTROUTING -s {{ public_bridge_ip }}/{{ ip_cidr_netmask }} ! -d {{ public_bridge_ip }}/{{ ip_cidr_netmask }} -p tcp -j MASQUERADE --to-ports 1024-65535
--A POSTROUTING -s {{ public_bridge_ip }}/{{ ip_cidr_netmask }} ! -d {{ public_bridge_ip }}/{{ ip_cidr_netmask }} -p udp -j MASQUERADE --to-ports 1024-65535
--A POSTROUTING -s {{ public_bridge_ip }}/{{ ip_cidr_netmask }} ! -d {{ public_bridge_ip }}/{{ ip_cidr_netmask }} -j MASQUERADE
+-A POSTROUTING -s {{ public_network_ip }}/{{ ip_cidr_netmask }} ! -d {{ public_network_ip }}/{{ ip_cidr_netmask }} -p tcp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s {{ public_network_ip }}/{{ ip_cidr_netmask }} ! -d {{ public_network_ip }}/{{ ip_cidr_netmask }} -p udp -j MASQUERADE --to-ports 1024-65535
+-A POSTROUTING -s {{ public_network_ip }}/{{ ip_cidr_netmask }} ! -d {{ public_network_ip }}/{{ ip_cidr_netmask }} -j MASQUERADE
 COMMIT
 
 *filter
@@ -28,18 +28,27 @@ COMMIT
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
 # Allow established traffic to the private subnet.
--A FORWARD -d {{ public_bridge_ip }}/{{ ip_cidr_netmask }} -o {{ public_bridge }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -d {{ public_network_ip }}/{{ ip_cidr_netmask }} -o {{ public_bridge }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -d {{ private_network_ip }}/{{ ip_cidr_netmask }} -o {{ private_bridge }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 # Allow outbound traffic from the private subnet.
--A FORWARD -s {{ public_bridge_ip }}/{{ ip_cidr_netmask }} -i {{ public_bridge }} -j ACCEPT
+-A FORWARD -s {{ public_network_ip }}/{{ ip_cidr_netmask }} -i {{ public_bridge }} -j ACCEPT
+-A FORWARD -s {{ private_network_ip }}/{{ ip_cidr_netmask }} -i {{ private_bridge }} -j ACCEPT
 # Allow traffic between virtual machines.
+-A FORWARD -i {{ private_bridge }} -o {{ private_bridge }} -j ACCEPT
 -A FORWARD -i {{ public_bridge }} -o {{ public_bridge }} -j ACCEPT
 # allow dhcp and dns
 -A INPUT -i {{ public_bridge }} -p udp -m udp -m multiport --dports 53,67 -j ACCEPT
 -A INPUT -i {{ public_bridge }} -p tcp -m tcp -m multiport --dports 53,67 -j ACCEPT
+# -A INPUT -i {{ private_bridge }} -p udp -m udp -m multiport --dports 53,67 -j ACCEPT
+# -A INPUT -i {{ private_bridge }} -p tcp -m tcp -m multiport --dports 53,67 -j ACCEPT
+# -A FORWARD -i {{ private_bridge }} -p udp -m udp -m multiport --dports 53,67 -j ACCEPT
+# -A FORWARD -i {{ private_bridge }} -p tcp -m tcp -m multiport --dports 53,67 -j ACCEPT
 ## Allow packets that have been forwarded to particular ports on the VM.
 # -A FORWARD -s 1.1.1.1/32 -d 10.0.0.77/32 -p all -j ACCEPT
 # -A FORWARD -d 10.0.0.77/32 -o {{ public_bridge }} -p tcp -m tcp --syn -m conntrack --ctstate NEW -m multiport --dports 22,80,443 -j ACCEPT
 # Reject everything else.
 -A FORWARD -i {{ public_bridge }} -j REJECT --reject-with icmp-port-unreachable
 -A FORWARD -o {{ public_bridge }} -j REJECT --reject-with icmp-port-unreachable
+-A FORWARD -i {{ private_bridge }} -j REJECT --reject-with icmp-port-unreachable
+-A FORWARD -o {{ private_bridge }} -j REJECT --reject-with icmp-port-unreachable
 COMMIT
