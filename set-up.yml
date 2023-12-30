@@ -164,7 +164,6 @@
             path: /VMs/isos
             state: directory
             mode: '0777'
-
             
         - name: List all VMs
           community.libvirt.virt:
@@ -226,7 +225,7 @@
                     state: shutdown
 
                 - name: Waiting for router VM to shutdown.
-                  pause: seconds=3
+                  pause: seconds=1
 
                 - name: Start router VM.
                   community.libvirt.virt:
@@ -234,19 +233,23 @@
                     state: running
                     autostart: true
 
-            - name: Waiting for router VM to load.
-              pause: seconds=30
-              when: vm_created.changed or vm_started.changed
-              
-            - name: Copy VyOs configuration script.
-              template:
-                src: "./templates/configure_vyos.sh"
-                dest: "/VMs/configure_vyos.sh"
-                mode: '0777'        
-              
-            - name: Run VyOs configuration script.
-              command: "/VMs/configure_vyos.sh"
+                - name: Waiting for router VM to load.
+                  pause: seconds=30
 
+                - name: Copy VyOs configuration script.
+                  template:
+                    src: "./templates/configure_vyos.sh"
+                    dest: "/VMs/configure_vyos.sh"
+                    mode: '0777'        
+
+                - name: Run VyOs configuration script.
+                  command: "/VMs/configure_vyos.sh"
+
+            - name: Enusre VyOs is enlisted in nameservers.
+              lineinfile:
+                path: /etc/resolv.conf
+                search_string: 'nameserver {{ router_private_ip }}'
+                line: 'nameserver {{ router_private_ip }}'
               
         - name: Ensure Parrot iso is downloaded.
           get_url:
