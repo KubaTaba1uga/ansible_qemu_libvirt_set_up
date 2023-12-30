@@ -1,4 +1,4 @@
 auto {{ private_bridge }}
 iface {{ private_bridge }} inet static
   bridge_ports none
-  address {{ private_bridge_cidr }}
+  address {{ private_bridge_ip }}/{{ ip_cidr_netmask }}
