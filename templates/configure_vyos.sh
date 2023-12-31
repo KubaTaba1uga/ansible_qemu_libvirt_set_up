@@ -10,8 +10,13 @@ expect <<EOF
   expect "vyos login:"  {send "vyos\r"}
   expect "Password:"  {send "vyos\r"}
   expect "vyos@vyos*" {send "configure\r"}
+  # Configure router OS
   expect "vyos@vyos*" {send "set system host-name '{{ vyos_vm_name }}'\r"}
-  expect "vyos@vyos*" {send "set system name-server '8.8.8.8'\r"}
+  expect "vyos@vyos*" {send "set system static-host-mapping host-name 'router' '{{ router_private_ip }}'\r"}
+  expect "vyos@vyos*" {send "set system name-server '208.67.222.222'\r"}
+  expect "vyos@vyos*" {send "set system name-server '208.67.220.220'\r"}
+  expect "vyos@vyos*" {send "set system name-server '94.140.14.14'\r"}
+  expect "vyos@vyos*" {send "set system name-server '76.223.122.150'\r"}
   # Configure public interface
   expect "vyos@vyos*" {send "set interfaces ethernet eth0 address '{{ router_public_ip }}/{{ ip_cidr_netmask }}'\r"}
   expect "vyos@vyos*" {send "set protocols static route 0.0.0.0/0 next-hop '{{ public_bridge_ip }}'\r"}

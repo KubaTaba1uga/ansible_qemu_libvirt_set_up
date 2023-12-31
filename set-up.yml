@@ -240,5 +240,7 @@
                 - name: Run VyOs configuration script.
                   command: "/VMs/configure_vyos.sh"
 
-            - name: Confirm router's network configuration.
-              command: ping {{ router_private_ip }} -c 3
+            - name: Confirm router's ip configuration.
+              command: ping {{ router_private_ip }} -c 3 && ping {{ router_public_ip }} -c 3
+            - name: Confirm router's dns configuration.
+              command: ping router.lab -c 3
