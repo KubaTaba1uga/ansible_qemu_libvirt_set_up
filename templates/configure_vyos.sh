@@ -12,7 +12,6 @@ expect <<EOF
   expect "vyos@vyos*" {send "configure\r"}
   # Configure router OS
   expect "vyos@vyos*" {send "set system host-name '{{ vyos_vm_name }}'\r"}
-  expect "vyos@vyos*" {send "set system static-host-mapping host-name 'router' '{{ router_private_ip }}'\r"}
   expect "vyos@vyos*" {send "set system name-server '208.67.222.222'\r"}
   expect "vyos@vyos*" {send "set system name-server '208.67.220.220'\r"}
   expect "vyos@vyos*" {send "set system name-server '94.140.14.14'\r"}
@@ -25,6 +24,7 @@ expect <<EOF
   expect "vyos@vyos*" {send "set nat source rule 100 translation address '{{ router_public_ip }}'\r"}
   # Configure private interface
   expect "vyos@vyos*" {send "set interfaces ethernet eth1 address '{{ router_private_ip }}/{{ ip_cidr_netmask }}'\r"}
+  expect "vyos@vyos*" {send "set service dhcp-server shared-network-name PRIVATE subnet '{{ private_network_ip }}/{{ ip_cidr_netmask }}' static-mapping 'router' ip-address '{{ router_private_ip }}'\r"}
   expect "vyos@vyos*" {send "set service dhcp-server shared-network-name PRIVATE subnet '{{ private_network_ip }}/{{ ip_cidr_netmask }}' default-router '{{ router_private_ip }}'\r"}
   expect "vyos@vyos*" {send "set service dhcp-server shared-network-name PRIVATE subnet '{{ private_network_ip }}/{{ ip_cidr_netmask }}' domain-name 'lab'\r"}
   expect "vyos@vyos*" {send "set service dhcp-server shared-network-name PRIVATE subnet '{{ private_network_ip }}/{{ ip_cidr_netmask }}' name-server '{{ router_private_ip }}'\r"}
