@@ -134,6 +134,14 @@
             enabled: true 
           when: iptables_render_result.changed
 
+    - name: Ensure network configuration is working as expected.
+      block:
+        - name: Confirm private bridge ip configuration.
+          command: ping {{ private_bridge_ip }} -c 3
+
+        - name: Confirm public bridge ip configuration.
+          command: ping {{ public_bridge_ip }} -c 3
+
     - name: Make sure router VM is up and running.
       block:
         - name: Ensure expect is installed.
@@ -240,7 +248,13 @@
                 - name: Run VyOs configuration script.
                   command: "/VMs/configure_vyos.sh"
 
-            - name: Confirm router's ip configuration.
-              command: ping {{ router_private_ip }} -c 3 && ping {{ router_public_ip }} -c 3
-            - name: Confirm router's dns configuration.
-              command: ping router.lab -c 3
+            - name: Ensure router VM is working as expected.
+              block:
+                - name: Confirm router's private ip configuration.
+                  command: ping {{ router_private_ip }} -c 3
+                  
+                - name: Confirm router's public ip configuration.
+                  command: ping {{ router_public_ip }} -c 3
+
+                - name: Confirm router's dns configuration.
+                  command: ping router.lab -c 3
