@@ -23,12 +23,7 @@
       ansible.builtin.apt:
         update_cache: yes
         
-    - name: Ensure Virt-manager is installed.
-      package:
-        name: virt-manager
-        state: present
-      
-    - name: Install Qemu+Libvirt.
+    - name: Configure virtualization hypervisor.
       block:
         - name: Ensure QEMU is installed.
           package:
@@ -139,7 +134,7 @@
             enabled: true 
           when: iptables_render_result.changed
 
-    - name: Configure Libvirt.
+    - name: Make sure router VM is up and running.
       block:
         - name: Ensure expect is installed.
           package:
@@ -210,13 +205,13 @@
                 - name: Waiting for router VM to load.
                   pause: seconds=30
 
-                - name: Copy VyOs installation script.
+                - name: Copy router installation script.
                   template:
                     src: "./templates/install_vyos.sh"
                     dest: "/VMs/install_vyos.sh"
                     mode: '0777'        
 
-                - name: Run VyOs installation script.
+                - name: Run router installation script.
                   command: "/VMs/install_vyos.sh"
 
                 - name: Shutdown router VM.
@@ -236,7 +231,7 @@
                 - name: Waiting for router VM to load.
                   pause: seconds=30
 
-                - name: Copy VyOs configuration script.
+                - name: Copy router's configuration script.
                   template:
                     src: "./templates/configure_vyos.sh"
                     dest: "/VMs/configure_vyos.sh"
@@ -245,9 +240,5 @@
                 - name: Run VyOs configuration script.
                   command: "/VMs/configure_vyos.sh"
 
-            - name: Enusre VyOs is enlisted in nameservers.
-              lineinfile:
-                path: /etc/resolv.conf
-                search_string: 'nameserver {{ router_private_ip }}'
-                line: 'nameserver {{ router_private_ip }}'
-              
+            - name: Confirm router's network configuration.
+              command: ping {{ router_private_ip }} -c 3

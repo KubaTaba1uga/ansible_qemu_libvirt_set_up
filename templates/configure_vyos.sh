@@ -29,8 +29,8 @@ expect <<EOF
   expect "vyos@vyos*" {send "set service dhcp-server shared-network-name PRIVATE subnet '{{ private_network_ip }}/{{ ip_cidr_netmask }}' exclude '{{ router_private_ip }}'\r"}
   expect "vyos@vyos*" {send "set service dhcp-server shared-network-name PRIVATE subnet '{{ private_network_ip }}/{{ ip_cidr_netmask }}' exclude '{{ private_bridge_ip }}'\r"}
   expect "vyos@vyos*" {send "set service dhcp-server host-decl-name\r"}
+  expect "vyos@vyos*" {send "set service dhcp-server hostfile-update\r"}
   expect "vyos@vyos*" {send "set service dns forwarding system\r"}
-  expect "vyos@vyos*" {send "set service dns forwarding cache-size '0'\r"}
   expect "vyos@vyos*" {send "set service dns forwarding listen-address '{{ router_private_ip }}'\r"}
   expect "vyos@vyos*" {send "set service dns forwarding allow-from '{{ private_network_ip }}/{{ ip_cidr_netmask }}'\r"}
   expect "vyos@vyos*" {send "set service dns forwarding dhcp eth1\r"}
