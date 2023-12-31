@@ -200,19 +200,15 @@
               when: vyos_vm_name not in all_vms.list_vms
               register: vm_created
               
-            - name: Start router VM.
+            - name: Ensure router VM is up.
               community.libvirt.virt:
                 name: "{{ vyos_vm_name }}"
                 state: running
                 autostart: true
-              register: vm_started
 
-            - name: Install router from iso.
+            - name: Create and configure router VM.
               when: vm_created.changed
               block:
-                - name: Waiting for router VM to load.
-                  pause: seconds=30
-
                 - name: Copy router installation script.
                   template:
                     src: "./templates/install_vyos.sh"
@@ -222,22 +218,14 @@
                 - name: Run router installation script.
                   command: "/VMs/install_vyos.sh"
 
-                - name: Shutdown router VM.
-                  community.libvirt.virt:
-                    name: "{{ vyos_vm_name }}"
-                    state: shutdown
+                - name: Waiting for router VM to reboot.
+                  pause: seconds=5
 
-                - name: Waiting for router VM to shutdown.
-                  pause: seconds=1
-
-                - name: Start router VM.
+                - name: Ensure router VM is up.
                   community.libvirt.virt:
                     name: "{{ vyos_vm_name }}"
                     state: running
                     autostart: true
-
-                - name: Waiting for router VM to load.
-                  pause: seconds=30
 
                 - name: Copy router's configuration script.
                   template:
@@ -248,6 +236,35 @@
                 - name: Run VyOs configuration script.
                   command: "/VMs/configure_vyos.sh"
 
+            - name: Ensure host's dns settings are configured properly.
+              block:
+                - name: Ensure dns resolver is installed.
+                  package:
+                    name: systemd-resolved
+                    state: present
+                    enabled: true
+                  register: resolver_installed
+
+                - name: Ensure dns resolution is enabled.
+                  lineinfile:
+                    path: /etc/systemd/resolved.conf
+                    regexp: '^#DNS='
+                    line: DNS=
+
+                - name: Ensure router VM is enlisted as dns server.
+                  lineinfile:
+                    path: /etc/systemd/resolved.conf
+                    regexp: '^DNS='
+                    insertafter: '^DNS='
+                    line: "{{ router private ip }} "
+
+                - name: Ensure dns resolver is restarted.
+                  package:
+                    name: systemd-resolved
+                    state: present
+                    enabled: true
+                  when: resolver_installed.changed
+                  
             - name: Ensure router VM is working as expected.
               block:
                 - name: Confirm router's private ip configuration.

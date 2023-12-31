@@ -2,7 +2,7 @@
 
 expect <<EOF
 
-  set timeout 120
+  set timeout 300
   spawn virsh console {{ vyos_vm_name }} --force
 
   expect "Escape character is"  {send "\r"}
@@ -16,6 +16,9 @@ expect <<EOF
   expect "Which one should be used for installation\?*" {send "\r"}
   expect "Installation will delete all data on the drive. Continue\?*" {send "y\r"}
   expect "Would you like to use all the free space on the drive\?*" {send "y\r"}
-  expect "vyos@vyos:" {send "reboot now\r"}
+  expect "The image installed successfully; please reboot now." {send "\r"}
+  expect "vyos@vyos:" {send "\r"}
+  expect "vyos@vyos:" {send "sudo reboot now\r"}
+  expect "vyos@vyos:" {send "\r"}
 
 EOF
