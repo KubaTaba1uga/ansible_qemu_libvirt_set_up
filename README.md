@@ -1,7 +1,9 @@
 # Manage Virtualization Hypervisor via ansible
 
 ## Prepare environment
-
+```
+pip install -r requirements.txt
+```
 ```
 ansible-galaxy collection install community.libvirt
 ansible-galaxy collection install community.general
@@ -16,3 +18,6 @@ Example:
 ```
 ansible-playbook -i 10.0.0.26, set-up.yml -u user
 ```
+
+## Network Architecture
+![Network architecture](/network.png)
