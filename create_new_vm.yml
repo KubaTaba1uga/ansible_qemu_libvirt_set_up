@@ -6,7 +6,6 @@
     vm_name: debian
     qcow_disk_url: https://www.dropbox.com/scl/fi/202530s77la4bm631bzf2/debian-12-nocloud-amd64.qcow2?rlkey=3qu2xchybpmzz7b1j3xnof47m&dl=1
     qcow_disk_checksum: sha1:29ac0028b7c3a87b971050fff55f98cd4239a0ce
-    username: taba1uga
     disk_size: 10
     ram_size: 2048
     cpu_cores: 2
@@ -106,11 +105,9 @@
             - name: Run VM's configuration script.
               command: "/VMs/{{ configuration_script }}"
           
-        - name: Ensure VM is up.
-          community.libvirt.virt:
-            name: "{{ vm_name }}"
-            state: running
-            autostart: "{{ autostart }}"
+            - name: Ensure VM is up.
+              community.libvirt.virt:
+                name: "{{ vm_name }}"
+                state: running
+                autostart: "{{ autostart }}"
 
-
-            

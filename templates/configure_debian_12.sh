@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
-ssh_key_file="/home/$USER/.ssh/id_rsa.pub"
+ssh_key_file="/home/$SUDO_USER/.ssh/id_rsa.pub"
 
 if [ ! -f "$ssh_key_file" ]; then
-    mkdir -p /home/$USER/.ssh
-    ssh-keygen -t rsa -f /home/$USER/.ssh/id_rsa -N '' -P '' 
+    mkdir -p /home/$SUDO_USER/.ssh
+    ssh-keygen -t rsa -f /home/$SUDO_USER/.ssh/id_rsa -N '' -P ''
+    chown $SUDO_USER -R /home/$SUDO_USER/.ssh/
 fi
 
 ssh_key=$(cat $ssh_key_file)
