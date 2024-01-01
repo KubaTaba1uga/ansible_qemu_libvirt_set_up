@@ -156,13 +156,13 @@
             state: directory
             mode: '0777'
 
-        - name: Create VM's images directory if it does not exist.
+        - name: Ensure VM's images directory exists.
           file:
             path: /VMs/images
             state: directory
             mode: '0777'
 
-        - name: Create VM's isos directory if it does not exist.
+        - name: Ensure VM's isos directory exists.
           file:
             path: /VMs/isos
             state: directory

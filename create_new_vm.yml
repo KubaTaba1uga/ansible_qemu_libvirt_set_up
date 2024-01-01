@@ -1,0 +1,62 @@
+---
+- hosts: all
+  become: yes
+  
+  vars:
+    vm_name: debian
+    username: taba1uga
+    disk_size: 10
+    qcow_disk_url: https://www.dropbox.com/scl/fi/202530s77la4bm631bzf2/debian-12-nocloud-amd64.qcow2?rlkey=3qu2xchybpmzz7b1j3xnof47m&dl=1
+    qcow_disk_checksum: sha1:29ac0028b7c3a87b971050fff55f98cd4239a0ce
+    
+  tasks:
+    - name: Check VM's disk info.
+      stat:
+        path: /VMs/images/{{ vm_name }}.qcow2
+      register: vm_disk
+
+    - set_fact: disk_size_in_gb={{ disk_size * 1073741824 }}
+      
+    - name: Ensure VM's disk exists.
+      when: not vm_disk.stat.exists
+      block:
+        - name: Ensure VM's disk exists.
+          get_url:
+            url: "{{ qcow_disk_url }}"
+            dest: /VMs/images/{{ vm_name }}.qcow2
+            checksum: "{{ qcow_disk_checksum }}"
+            mode: '0777'
+
+        - name: Ensure VM's backup directory exists.
+          file:
+            path: /VMs/backups
+            state: directory
+            mode: '0777'
+        
+        - name: Ensure VM's backup exists.
+          copy:
+            src: /VMs/images/{{ vm_name }}.qcow2
+            dest: /VMs/backups/{{ vm_name }}.resizing-backup.qcow2
+            remote_src: true
+
+        - name: Resize VM's disk.
+          command: qemu-img resize /VMs/images/{{ vm_name }}.qcow2 {{ disk_size_in_gb }}
+          register: resizing_result
+          failed_when: resizing_result.rc != 0
+          
+        - name: Ensure backup is deleted.
+          file:
+            path: /VMs/backups/{{ vm_name }}.resizing-backup.qcow2
+            state: absent
+          
+      rescue:
+        - name: Provision backup if resizing failed.
+          copy:
+            src: /VMs/backups/{{ vm_name }}.resizing-backup.qcow2
+            dest: /VMs/images/{{ vm_name }}.qcow2
+            remote_src: true
+            
+        - name: Ensure backup is deleted.
+          file:
+            path: /VMs/backups/{{ vm_name }}.resizing-backup.qcow2
+            state: absent
