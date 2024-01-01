@@ -1,8 +1,9 @@
 # Manage Virtualization Hypervisor via ansible
 
 ## Prepare environment
-Before proceeding further make sure that You have ansible installed in Your current python's environment.
-
+```
+pip install -r requirements.txt
+```
 ```
 ansible-galaxy collection install community.libvirt
 ansible-galaxy collection install community.general
