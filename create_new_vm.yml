@@ -111,3 +111,8 @@
                 state: running
                 autostart: "{{ autostart }}"
 
+        # - name: Test VM.
+        #   community.libvirt.virt:
+        #     name: "{{ vm_name }}"
+        #     state: running
+        #     autostart: "{{ autostart }}"

@@ -21,7 +21,8 @@ expect <<EOF
   expect "root@localhost*" {send "cd /etc/ssh/ ; ssh-keygen -A\r"}
   expect "root@localhost*" {send "mkdir -p /root/.ssh && echo $ssh_key >> /root/.ssh/authorized_keys\r"}
   expect "root@localhost*" {send "echo {{ vm_name }} > /etc/hostname \r"}
-  expect "root@localhost*" {send "\r"}
+  expect "root@localhost*" {send "growpart /dev/vda 1\r"}
+  expect "root@localhost*" {send "resize2fs /dev/vda1\r"}
   expect "root@localhost*" {send "\r"}
   expect "root@localhost*" {send "reboot now\r"}
   expect "root@localhost*" {send "\r"}
