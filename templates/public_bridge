@@ -1,5 +1,5 @@
-auto {{ public_bridge }}
-iface {{ public_bridge }} inet static
-  bridge_ports {{ desktop_interface }}
+auto {{ public_bridge_interface }}
+iface {{ public_bridge_interface }} inet static
+  bridge_ports {{ dummy_interface }}
   address {{ public_bridge_ip }}/{{ ip_cidr_netmask }}
 

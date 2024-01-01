@@ -4,16 +4,16 @@
 
   vars:
     - force_rebuild: true
-    - desktop_interface: desktop
-    - public_bridge: pub0br
-    - private_bridge: priv0br
+    - dummy_interface: dummy_host
+    - public_bridge_interface: pub0br
+    - private_bridge_interface: priv0br
     - ip_cidr_netmask: 16
     - public_network_ip: 172.16.0.0
     - public_bridge_ip: 172.16.0.1
-    - router_public_ip: 172.16.0.2
+    - public_router_ip: 172.16.0.2
     - private_network_ip: 172.31.0.0
     - private_bridge_ip: 172.31.0.1
-    - router_private_ip: 172.31.0.2
+    - private_router_ip: 172.31.0.2
     - vyos_iso_link: https://www.dropbox.com/scl/fi/vn3sg0y1mtfb38n9qf5kl/vyos-1-4-live.iso?rlkey=yup5rw1nd9eq2xbhzd1ivf4a2&dl=1
     - vyos_iso_checksum: sha1:61694c7c2c89643b64c79fa78a84a242b8f8ebf1
     - vyos_vm_name: VyOs-router
@@ -70,14 +70,14 @@
       block:
         - name: Ensure public bridge is created.
           template:
-            src: "./templates/public_bridge"
-            dest: "/etc/network/interfaces.d/{{ public_bridge }}"
+            src: "./templates/public_bridge_interface"
+            dest: "/etc/network/interfaces.d/{{ public_bridge_interface }}"
           register: bridge_result
 
         - name: Ensure private bridge is created.
           template:
-            src: "./templates/private_bridge"
-            dest: "/etc/network/interfaces.d/{{ private_bridge }}"
+            src: "./templates/private_bridge_interface"
+            dest: "/etc/network/interfaces.d/{{ private_bridge_interface }}"
 
         - name: Generate random MAC address for dummy interface.
           command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
@@ -86,8 +86,8 @@
 
         - name: Create dummy interface.
           template:
-            src: "./templates/desktop_interface"
-            dest: "/etc/network/interfaces.d/{{ desktop_interface }}"
+            src: "./templates/dummy_interface"
+            dest: "/etc/network/interfaces.d/{{ dummy_interface }}"
           with_items: "{{ random_mac['stdout'] }}"
           when: random_mac.changed    
 
@@ -189,8 +189,8 @@
                           --ram 2048
                           --vcpus 2
                           --os-variant debian9
-                          --network bridge="{{ public_bridge }}"
-                          --network bridge="{{ private_bridge }}"                          
+                          --network bridge="{{ public_bridge_interface }}"
+                          --network bridge="{{ private_bridge_interface }}"                          
                           --graphics vnc
                           --hvm
                           --virt-type kvm
@@ -248,7 +248,7 @@
                   lineinfile:
                     path: /etc/systemd/resolved.conf
                     regexp: '^DNS='
-                    line: "DNS={{ router_private_ip }} "
+                    line: "DNS={{ private_router_ip }} "
                   register: basic_dns
 
                 - name: Ensure backup dns server is enabled.
@@ -268,10 +268,10 @@
             - name: Ensure router VM is working as expected.
               block:
                 - name: Confirm router's private ip configuration.
-                  command: ping {{ router_private_ip }} -c 3
+                  command: ping {{ private_router_ip }} -c 3
                   
                 - name: Confirm router's public ip configuration.
-                  command: ping {{ router_public_ip }} -c 3
+                  command: ping {{ public_router_ip }} -c 3
 
                 - name: Confirm router's dns configuration.
                   command: ping router.lab -c 3

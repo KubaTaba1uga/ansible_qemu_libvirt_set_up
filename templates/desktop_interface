@@ -1,7 +1,0 @@
-auto {{ desktop_interface }}
-iface {{ desktop_interface }} inet manual
-  pre-up /sbin/ip link add {{ desktop_interface }} type dummy
-  up /sbin/ip link set {{ desktop_interface }} address {{ item }}
-  post-down /sbin/ip link del {{ desktop_interface }}
-
-
