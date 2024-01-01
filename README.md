@@ -19,3 +19,4 @@ ansible-playbook -i 10.0.0.26, set-up.yml -u user
 ```
 
 ## Network Architecture
+[Network architecture](/network.svg)
