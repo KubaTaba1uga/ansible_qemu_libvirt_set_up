@@ -19,7 +19,7 @@
     - vyos_vm_name: VyOs-router
       
   tasks:
-    - name: Run the equivalent of "apt-get update" as a separate step.
+    - name: Run the equivalent of "apt-get update".
       ansible.builtin.apt:
         update_cache: yes
         
