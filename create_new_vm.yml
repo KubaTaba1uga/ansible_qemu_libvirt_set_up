@@ -111,8 +111,13 @@
                 state: running
                 autostart: "{{ autostart }}"
 
-        # - name: Test VM.
-        #   community.libvirt.virt:
-        #     name: "{{ vm_name }}"
-        #     state: running
-        #     autostart: "{{ autostart }}"
+        - name: Test VM ICMP connectivity.
+          command: for i in `seq 1 60`; do date ; sleep 1 ; ping -c3 {{ vm_name }}.lab &>/dev/null && break ; done
+          register: ping_result
+          failed_when: ping_result.rc != 0          
+
+        - name: Test VM ssh connectivity.
+          command: until nc -vzw 2 {{ vm_name }} 22; do sleep 1; done
+          register: ssh_result
+          failed_when: ssh_result.rc != 0          
+          
