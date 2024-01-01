@@ -253,14 +253,14 @@
                 - name: Ensure router VM is enlisted as primary dns server.
                   lineinfile:
                     path: /etc/systemd/resolved.conf
-                    regexp: '^[#]DNS='
+                    regexp: '^DNS='
                     line: "DNS={{ router_private_ip }} "
                   register: basic_dns
 
-                - name: Ensure secondary dns server is enabled.
+                - name: Ensure backup dns server is enabled.
                   lineinfile:
                     path: /etc/systemd/resolved.conf
-                    regexp: '^[#]FallbackDNS='
+                    regexp: '^FallbackDNS='
                     line: "FallbackDNS=1.1.1.1"
                   register: backup_dns
                   
