@@ -242,7 +242,6 @@
                   package:
                     name: systemd-resolved
                     state: present
-                    enabled: true
                   register: resolver_installed
 
                 - name: Ensure dns resolution is enabled.
@@ -251,19 +250,26 @@
                     regexp: '^#DNS='
                     line: DNS=
 
-                - name: Ensure router VM is enlisted as dns server.
+                - name: Ensure router VM is enlisted as primary dns server.
                   lineinfile:
                     path: /etc/systemd/resolved.conf
-                    regexp: '^DNS='
-                    insertafter: '^DNS='
-                    line: "{{ router private ip }} "
+                    regexp: '^[#]DNS='
+                    line: "DNS={{ router_private_ip }} "
+                  register: basic_dns
 
+                - name: Ensure secondary dns server is enabled.
+                  lineinfile:
+                    path: /etc/systemd/resolved.conf
+                    regexp: '^[#]FallbackDNS='
+                    line: "FallbackDNS=1.1.1.1"
+                  register: backup_dns
+                  
                 - name: Ensure dns resolver is restarted.
-                  package:
+                  service:
                     name: systemd-resolved
-                    state: present
+                    state: restarted
                     enabled: true
-                  when: resolver_installed.changed
+                  when: resolver_installed.changed or basic_dns.changed or backup_dns.changed
                   
             - name: Ensure router VM is working as expected.
               block:
