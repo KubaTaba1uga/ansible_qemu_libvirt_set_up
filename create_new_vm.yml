@@ -4,10 +4,15 @@
   
   vars:
     vm_name: debian
-    username: taba1uga
-    disk_size: 10
     qcow_disk_url: https://www.dropbox.com/scl/fi/202530s77la4bm631bzf2/debian-12-nocloud-amd64.qcow2?rlkey=3qu2xchybpmzz7b1j3xnof47m&dl=1
     qcow_disk_checksum: sha1:29ac0028b7c3a87b971050fff55f98cd4239a0ce
+    username: taba1uga
+    disk_size: 10
+    ram_size: 2048
+    cpu_cores: 2
+    autostart: true
+    network: priv0br
+    configuration_script: configure_debian_12.sh
     
   tasks:
     - name: Check VM's disk info.
@@ -60,3 +65,52 @@
           file:
             path: /VMs/backups/{{ vm_name }}.resizing-backup.qcow2
             state: absent
+
+    - name: Ensure VM is created.
+      block:
+        - name: List all VMs
+          community.libvirt.virt:
+            command: list_vms
+          register: all_vms    
+
+        - name: Create VM.
+          command: virt-install -n "{{ vm_name }}"
+                                --ram {{ ram_size }}
+                                --vcpus {{ cpu_cores }}
+                                --os-variant linux2022
+                                --network bridge="{{ network }}"
+                                --graphics vnc
+                                --hvm
+                                --virt-type kvm
+                                --disk path=/VMs/images/{{ vm_name }}.qcow2,bus=virtio,size={{ disk_size }}
+                                --import
+                                --noautoconsole
+          when: vm_name not in all_vms.list_vms
+          register: vm
+          
+        - name: Ensure VM is up.
+          community.libvirt.virt:
+            name: "{{ vm_name }}"
+            state: running
+            autostart: "{{ autostart }}"
+    
+        - name: Configure VM.
+          when: vm.changed
+          block:
+            - name: Copy VM's configuration script.
+              template:
+                src: "./templates/{{ configuration_script }}"
+                dest: "/VMs/{{ configuration_script }}"
+                mode: '0777'        
+
+            - name: Run VM's configuration script.
+              command: "/VMs/{{ configuration_script }}"
+          
+        - name: Ensure VM is up.
+          community.libvirt.virt:
+            name: "{{ vm_name }}"
+            state: running
+            autostart: "{{ autostart }}"
+
+
+            
