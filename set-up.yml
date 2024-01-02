@@ -3,20 +3,20 @@
   become: yes
 
   vars:
-    - force_rebuild: true
-    - dummy_interface: dummy_host
-    - public_bridge_interface: pub0br
-    - private_bridge_interface: priv0br
-    - ip_cidr_netmask: 16
-    - public_network_ip: 172.16.0.0
-    - public_bridge_ip: 172.16.0.1
-    - public_router_ip: 172.16.0.2
-    - private_network_ip: 172.31.0.0
-    - private_bridge_ip: 172.31.0.1
-    - private_router_ip: 172.31.0.2
-    - vyos_iso_link: https://www.dropbox.com/scl/fi/vn3sg0y1mtfb38n9qf5kl/vyos-1-4-live.iso?rlkey=yup5rw1nd9eq2xbhzd1ivf4a2&dl=1
-    - vyos_iso_checksum: sha1:61694c7c2c89643b64c79fa78a84a242b8f8ebf1
-    - vyos_vm_name: VyOs-router
+    force_rebuild: true
+    dummy_interface: dummy_host
+    public_bridge_interface: pub0br
+    private_bridge_interface: priv0br
+    ip_cidr_netmask: 16
+    public_network_ip: 172.16.0.0
+    public_bridge_ip: 172.16.0.1
+    public_router_ip: 172.16.0.2
+    private_network_ip: 172.31.0.0
+    private_bridge_ip: 172.31.0.1
+    private_router_ip: 172.31.0.2
+    vyos_iso_link: https://www.dropbox.com/scl/fi/vn3sg0y1mtfb38n9qf5kl/vyos-1-4-live.iso?rlkey=yup5rw1nd9eq2xbhzd1ivf4a2&dl=1
+    vyos_iso_checksum: sha1:61694c7c2c89643b64c79fa78a84a242b8f8ebf1
+    vyos_vm_name: VyOs-router
       
   tasks:
     - name: Run the equivalent of "apt-get update".
@@ -276,7 +276,7 @@
                 - name: Waiting for router VM to reboot.
                   pause: seconds=5
 
-                - name: Ensure router VM is booting on atsrtup.
+                - name: Ensure router VM is booting on startup.
                   community.libvirt.virt:
                     name: "{{ vyos_vm_name }}"
                     autostart: true

@@ -4,8 +4,8 @@
   
   vars:
     vm_name: debian
-    vm_os: debian12
-    disk_size: 10
+    vm_template: debian-12
+    disk_size: 30
     ram_size: 2048
     cpu_cores: 2
     autostart: true
@@ -13,20 +13,80 @@
     configuration_script: configure_debian_12.sh
     
   tasks:
+    - name: Generate SSH key "id_rsa".
+      openssh_keypair:
+        path: "/home/{{ ansible_user }}/.ssh/id_rsa"
+        type: rsa
+        size: 4096
+        state: present
+        force: no
+                
     - name: Ensure VM's disk is built.
       block:
         - name: Gather facts about storage pools
           community.libvirt.virt_pool:
             command: facts
 
-    - debug: var=ansible_libvirt_pools
-            
-    - name: Ensure VM is created.
-      block:
-        - name: List all VMs
-          community.libvirt.virt:
-            command: list_vms
-          register: all_vms    
+        - name: Build VM's disk.
+          block:            
+            - set_fact:
+                image: "{{ vm_name }}.qcow2"
+                disk_size_in_gb: "{{ disk_size }}G"
+
+            - name: Copy VM's configuration script.
+              template:
+                src: "./templates/{{ configuration_script }}"
+                dest: "/tmp/{{ configuration_script }}"
+                mode: '0777'        
+
+            - name: Build VM's disk.
+              when: image not in ansible_libvirt_pools.images.volumes
+              command: virt-builder {{ vm_template }}
+                                    --output /VMs/images/{{ image }}
+                                    --format qcow2
+                                    --size {{ disk_size_in_gb }}
+                                    --hostname {{ vm_name }}
+                                    --ssh-inject root:file:"/home/{{ ansible_user }}/.ssh/id_rsa.pub"
+                                    --firstboot /tmp/{{ configuration_script }}
+
+    # - name: Ensure VM is created.
+    #   block:
+    #     - name: List all VMs
+    #       community.libvirt.virt:
+    #         command: list_vms
+    #       register: all_vms    
+
+    #     - name: Create VM.
+    #       command: virt-install -n "{{ vm_name }}"
+    #                             --ram {{ ram_size }}
+    #                             --vcpus {{ cpu_cores }}
+    #                             --os-variant linux2022
+    #                             --network bridge="{{ network }}"
+    #                             --graphics vnc
+    #                             --hvm
+    #                             --virt-type kvm
+    #                             --disk path=/VMs/images/{{ vm_name }}.qcow2,bus=virtio,size={{ disk_size }},pool=images
+    #                             --import
+    #                             --noautoconsole
+    #       when: vm_name not in all_vms.list_vms
+    #       register: vm
+          
+    #     - name: Ensure VM is up.
+    #       community.libvirt.virt:
+    #         name: "{{ vm_name }}"
+    #         state: running
+    #         autostart: "{{ autostart }}"
+    
+    #     - name: Test VM ICMP connectivity.
+    #       command: bash -c "for i in `seq 1 60`; do date ; sleep 1 ; ping -c3 {{ vm_name }}.lab &>/dev/null && break ; done"
+    #       register: ping_result
+    #       failed_when: ping_result.rc != 0          
+
+    #     - name: Test VM ssh connectivity.
+    #       command: bash -c "until nc -vzw 2 {{ vm_name }} 22; do sleep 1; done"
+    #       register: ssh_result
+    #       failed_when: ssh_result.rc != 0          
+          
     
     # - name: Check VM's disk info.
     #   stat:
@@ -63,7 +123,7 @@
     #       failed_when: resizing_result.rc != 0
           
     #     - name: Ensure backup is deleted.
-    #       file:
+     #       file:
     #         path: /VMs/backups/{{ vm_name }}.resizing-backup.qcow2
     #         state: absent
           
