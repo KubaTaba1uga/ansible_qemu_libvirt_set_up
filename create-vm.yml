@@ -77,7 +77,7 @@
           when: vm_name not in all_vms.list_vms
           register: vm
 
-        - name: Ensure VM booting on startup is configured.
+        - name: Ensure VM's booting on startup is configured.
           community.libvirt.virt:
             name: "{{ vm_name }}"
             autostart: "{{ autostart }}"
