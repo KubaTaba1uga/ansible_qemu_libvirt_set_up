@@ -63,6 +63,7 @@
           register: all_vms    
           
         - name: Create VM.
+          when: vm_name not in all_vms.list_vms
           command: virt-install -n {{ vm_name }}
                                 --ram {{ ram_size }}
                                 --vcpus {{ cpu_cores }}
@@ -74,7 +75,6 @@
                                 --disk vol=images/{{ image }},bus=virtio
                                 --import
                                 --noautoconsole
-          when: vm_name not in all_vms.list_vms
           register: vm
 
         - name: Ensure VM's booting on startup is configured.
