@@ -1,0 +1,24 @@
+---
+- hosts: all
+  become: yes
+  
+  vars:
+    vm_name: debian
+
+  tasks:    
+    - name: List all VMs
+      community.libvirt.virt:
+        command: list_vms
+      register: all_vms    
+
+    - name: Destroy VM.
+      when: vm_name in all_vms.list_vms
+      block:
+        - name: Ensure VM is destroyed.
+          community.libvirt.virt:
+            name: "{{ vm_name }}"
+            state: destroyed
+            
+        - name: Ensure VM is undefined.
+          command: "virsh undefine {{ vm_name }} --remove-all-storage --snapshots-metadata"
+
