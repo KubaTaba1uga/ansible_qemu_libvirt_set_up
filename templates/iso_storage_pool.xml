@@ -1,0 +1,6 @@
+<pool type="dir">
+  <name>{{ isos_pool_name }}</name>
+  <target>
+    <path>/VMs/isos</path>
+  </target>
+</pool>

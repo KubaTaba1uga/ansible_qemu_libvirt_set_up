@@ -22,52 +22,14 @@
     - name: Run the equivalent of "apt-get update".
       ansible.builtin.apt:
         update_cache: yes
-        
-    - name: Configure virtualization hypervisor.
-      block:
-        - name: Ensure QEMU is installed.
-          package:
-            name: qemu-kvm
-            state: present
-            
-        - name: Ensure Libvirt is installed.
-          package:
-            name:
-              - libvirt0
-              - python3-libvirt
-              - python3-lxml        
-              - libvirt-dev
-              - libvirt-clients
-              - libvirt-daemon
-              - libvirt-daemon-system
-              - bridge-utils
-              - libguestfs-tools
-            state: present
-
-        - name: Ensure USER is in QEMU groups.
-          user:
-            name: "{{ ansible_user }}"
-            append: true
-            groups: kvm,libvirt
-
-        - name: Enable Libvirt.
-          service:
-            name: libvirtd
-            state: started
-            enabled: true
-
-        - name: Ensure Libvirt's default network is destroyed.
-          community.libvirt.virt_net:
-            name: default
-            state: absent
-
-        - name: Ensure virt-install is installed.
-          package:
-            name: virtinst
-            state: present
-            
+    
     - name: Configure networking.
       block:
+        - name: Ensure bridge-utils is installed.
+          package:
+            name: bridge-utils
+            state: present
+        
         - name: Ensure public bridge is created.
           template:
             src: "./templates/public_bridge_interface"
@@ -133,24 +95,61 @@
             state: restarted
             enabled: true 
           when: iptables_render_result.changed
+          
+        - name: Ensure network configuration is working as expected.
+          block:
+            - name: Test private bridge ip configuration.
+              command: ping {{ private_bridge_ip }} -c 3
 
-    - name: Ensure network configuration is working as expected.
+            - name: Test public bridge ip configuration.
+              command: ping {{ public_bridge_ip }} -c 3
+
+    - name: Install virtualization hypervisor.
       block:
-        - name: Confirm private bridge ip configuration.
-          command: ping {{ private_bridge_ip }} -c 3
-
-        - name: Confirm public bridge ip configuration.
-          command: ping {{ public_bridge_ip }} -c 3
-
-    - name: Make sure router VM is up and running.
-      block:
-        - name: Ensure expect is installed.
+        - name: Ensure QEMU is installed.
+          package:
+            name: qemu-kvm
+            state: present
+            
+        - name: Ensure Libvirt is installed.
           package:
             name:
-              - expect
+              - libvirt0
+              - python3-libvirt
+              - python3-lxml        
+              - libvirt-dev
+              - libvirt-clients
+              - libvirt-daemon
+              - libvirt-daemon-system
             state: present
+            
+        - name: Ensure virt tools are installed.
+          package:
+            name:
+              - virtinst
+              - libguestfs-tools
+            state: present
+            
+    - name: Configure virtualization hypervisor.
+      block:
+        - name: Ensure USER is in QEMU groups.
+          user:
+            name: "{{ ansible_user }}"
+            append: true
+            groups: kvm,libvirt
 
-        - name: Create VM's directory if it does not exist.
+        - name: Enable Libvirt.
+          service:
+            name: libvirtd
+            state: started
+            enabled: true
+
+        - name: Ensure Libvirt's default network is destroyed.
+          community.libvirt.virt_net:
+            name: default
+            state: absent
+
+        - name: Ensure VM's directory exists.
           file:
             path: /VMs/
             state: directory
@@ -162,11 +161,67 @@
             state: directory
             mode: '0777'
 
-        - name: Ensure VM's isos directory exists.
+        - name: Ensure VM's ISOs directory exists.
           file:
             path: /VMs/isos
             state: directory
             mode: '0777'
+            
+        - name: List all storage pools
+          community.libvirt.virt_pool:
+            command: list_pools
+          register: all_sps
+
+        - set_fact:
+            vms_pool_name: "images"
+
+        - set_fact:
+            isos_pool_name: "ISOs"
+            
+        - name: Define VM's storage pool.
+          community.libvirt.virt_pool:
+            command: define
+            name: "{{ vms_pool_name }}"
+            xml: '{{ lookup("template", "vm_storage_pool.xml") }}'
+          when: vms_pool_name not in all_sps.list_pools
+
+        - name: Ensure VM's storage pool is booting on startup.
+          community.libvirt.virt_pool:
+            name: "{{ vms_pool_name }}"
+            autostart: true
+          
+        - name: Ensure VM's storage pool is up and running.
+          community.libvirt.virt_pool:
+            name: "{{ vms_pool_name }}"
+            state: active
+            autostart: true
+            
+        - name: Define ISO's storage pool
+          community.libvirt.virt_pool:
+            command: define
+            name: "{{ isos_pool_name }}"
+            xml: '{{ lookup("template", "iso_storage_pool.xml") }}'
+          when: isos_pool_name not in all_sps.list_pools         
+
+          
+        - name: Ensure ISO's storage pool is booting on startup.
+          community.libvirt.virt_pool:
+            name: "{{ isos_pool_name }}"
+            autostart: true
+          
+        - name: Ensure ISO's storage pool is up and running.
+          community.libvirt.virt_pool:
+            name: "{{ isos_pool_name }}"
+            state: active
+            autostart: true
+            
+    - name: Ensure router VM is up and running.
+      block:
+        - name: Ensure expect is installed.
+          package:
+            name:
+              - expect
+            state: present
             
         - name: List all VMs
           community.libvirt.virt:
@@ -194,7 +249,7 @@
                           --graphics vnc
                           --hvm
                           --virt-type kvm
-                          --disk path=/VMs/images/vyos-router.qcow2,bus=virtio,size=10
+                          --disk path=/VMs/images/vyos-router.qcow2,bus=virtio,size=10,pool={{ vms_pool_name  }}
                           --cdrom /VMs/isos/vyos-1-4.iso
                           --noautoconsole
               when: vyos_vm_name not in all_vms.list_vms
@@ -221,11 +276,15 @@
                 - name: Waiting for router VM to reboot.
                   pause: seconds=5
 
+                - name: Ensure router VM is booting on atsrtup.
+                  community.libvirt.virt:
+                    name: "{{ vyos_vm_name }}"
+                    autostart: true
+
                 - name: Ensure router VM is up.
                   community.libvirt.virt:
                     name: "{{ vyos_vm_name }}"
                     state: running
-                    autostart: true
 
                 - name: Copy router's configuration script.
                   template:
@@ -236,7 +295,7 @@
                 - name: Run VyOs configuration script.
                   command: "/VMs/configure_vyos.sh"
 
-            - name: Ensure host's dns settings are configured properly.
+            - name: Ensure host's dns is configured properly.
               block:
                 - name: Ensure dns resolver is installed.
                   package:
@@ -267,11 +326,11 @@
                   
             - name: Ensure router VM is working as expected.
               block:
-                - name: Confirm router's private ip configuration.
+                - name: Test router's private ip configuration.
                   command: ping {{ private_router_ip }} -c 3
                   
-                - name: Confirm router's public ip configuration.
+                - name: Test router's public ip configuration.
                   command: ping {{ public_router_ip }} -c 3
 
-                - name: Confirm router's dns configuration.
+                - name: Test router's dns configuration.
                   command: ping router.lab -c 3
