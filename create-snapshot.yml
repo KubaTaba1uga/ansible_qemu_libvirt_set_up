@@ -4,7 +4,11 @@
   
   vars:
     vm_name: debian
-    snapshot_name: fresh_install
+
+  vars_prompt:
+    - name: snapshot_name
+      prompt: Snapshot's name
+      default: fresh_install
     
   tasks:
     - name: Ensure snapshot exsists.
@@ -13,6 +17,6 @@
           command: "virsh snapshot-list {{ vm_name }}"
           register: snapshot_list_cmd
           
-        - name: Ensure snapshot exsists.
+        - name: Create snapshot.
           command: "virsh snapshot-create-as {{ vm_name }} --name {{ snapshot_name }} --atomic"
-          when: snapshot_name not in snapshot_list_cmd.stdout
+

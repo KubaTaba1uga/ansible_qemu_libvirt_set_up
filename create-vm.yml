@@ -71,7 +71,7 @@
                                 --graphics vnc
                                 --hvm
                                 --virt-type kvm
-                                --disk path=/VMs/images/{{ image }},bus=virtio
+                                --disk vol=images/{{ image }},bus=virtio
                                 --import
                                 --noautoconsole
           when: vm_name not in all_vms.list_vms

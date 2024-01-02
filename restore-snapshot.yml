@@ -1,0 +1,11 @@
+---
+- hosts: all
+  become: yes
+  
+  vars:
+    vm_name: debian
+    snapshot_name: fresh_install
+    
+  tasks:
+    - name: Activate snapshot.
+      command: "virsh snapshot-revert {{ vm_name }} {{ snapshot_name }}"

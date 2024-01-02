@@ -1,0 +1,16 @@
+---
+- hosts: all
+  become: yes
+  
+  vars:
+    vm_name: debian
+    
+  tasks:
+    - name: List snapshots.
+      command: "virsh snapshot-list {{ vm_name }}"
+      register: cli_result
+
+    - debug:
+        msg: "{{ ['Snapshots'] + cli_result.stdout_lines }}"
+        verbosity: 0
+
