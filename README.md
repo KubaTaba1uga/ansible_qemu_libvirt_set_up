@@ -41,6 +41,6 @@ ansible-playbook -i <ip>, delete-vm.yml -u <username> -e vm_name=<vm_name>
 
 Example:
 ```
-ansible-playbook -i 10.0.0.26, delete-up.yml -u user -e vm_name=vm0
+ansible-playbook -i 10.0.0.26, delete-vm.yml -u user -e vm_name=vm0
 ```
 
