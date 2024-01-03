@@ -1,6 +1,6 @@
 # Manage Virtualization Hypervisor via ansible
 
-Create virtualized environment that mimic home network with just one command.
+Create virtualized environment which mimic home network. 
 
 ## Network Architecture
 ![Network architecture](/network.png) 
