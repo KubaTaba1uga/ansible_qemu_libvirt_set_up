@@ -11,7 +11,7 @@
       default: fresh_install
     
   tasks:
-    - name: Ensure snapshot exsists.
+    - name: Ensure snapshot doesn't exsist.
       block:
         - name: Get snapshot.
           command: "virsh snapshot-info --domain {{ vm_name }} --snapshotname {{ snapshot_name }}"
@@ -19,6 +19,6 @@
           ignore_errors: true
           failed_when: snapshot_list_cmd.rc != 0
           
-        - name: Create snapshot.
-          command: "virsh snapshot-create-as --domain {{ vm_name }} --snapshotname {{ snapshot_name }} --atomic"
-          when: snapshot_list_cmd.failed 
+        - name: Delete snapshot.
+          command: "virsh snapshot-delete --domain {{ vm_name }} --snapshotname {{ snapshot_name }}"
+          when: not snapshot_list_cmd.failed 
