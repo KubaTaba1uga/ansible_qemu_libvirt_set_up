@@ -3,7 +3,8 @@
 Create virtualized environment which mimic home network. 
 
 ## Network Architecture
-![Network architecture](/network.png) 
+![Network architecture](/network.pn) 
+
 
 ## Prepare environment
 ```
