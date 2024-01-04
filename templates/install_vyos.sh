@@ -10,7 +10,7 @@ expect <<EOF
   expect "Password:"  {send "vyos\r"}
   expect "vyos@vyos:" {send "install image\r"}
   expect "Would you like to continue\?*" {send "y\r"}
-  expect "What would you like to name this image\?*" {send "1.4\r"}
+  expect "What would you like to name this image\?*" {send "initial\r"}
   expect "Please enter a password*" {send "vyos\r"}
   expect "What console*" {send "\r"}
   expect "Which one should be used for installation\?*" {send "\r"}

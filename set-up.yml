@@ -4,7 +4,6 @@
 
   vars:
     force_rebuild: true
-    dummy_interface: dummy_host
     public_bridge_interface: pub0br
     private_bridge_interface: priv0br
     ip_cidr_netmask: 16
@@ -41,18 +40,6 @@
             src: "./templates/private_bridge_interface"
             dest: "/etc/network/interfaces.d/{{ private_bridge_interface }}"
 
-        - name: Generate random MAC address for dummy interface.
-          command: python3 -c 'import os; print(":".join(["{:02x}".format(x) for x in b"\02x" + os.urandom(4)]))'
-          register: random_mac
-          when: bridge_result.changed
-
-        - name: Create dummy interface.
-          template:
-            src: "./templates/dummy_interface"
-            dest: "/etc/network/interfaces.d/{{ dummy_interface }}"
-          with_items: "{{ random_mac['stdout'] }}"
-          when: random_mac.changed    
-
         - name: Restart networking.
           service:
             name: networking
@@ -87,14 +74,19 @@
           template:
             src: "./templates/iptables_rules"
             dest: "/etc/iptables/rules.v4"
-          register: iptables_render_result
 
+        - name: Restore rendered state of the firewall.
+          community.general.iptables_state:
+            state: restored
+            path: "/etc/iptables/rules.v4"
+          async: "{{ ansible_timeout }}"
+          poll: 0
+          
         - name: Restart iptables.
           service:
             name: iptables
             state: restarted
             enabled: true 
-          when: iptables_render_result.changed
           
         - name: Ensure network configuration is working as expected.
           block:
@@ -174,8 +166,6 @@
 
         - set_fact:
             vms_pool_name: "images"
-
-        - set_fact:
             isos_pool_name: "ISOs"
             
         - name: Define VM's storage pool.
@@ -194,7 +184,6 @@
           community.libvirt.virt_pool:
             name: "{{ vms_pool_name }}"
             state: active
-            autostart: true
             
         - name: Define ISO's storage pool
           community.libvirt.virt_pool:
@@ -202,7 +191,6 @@
             name: "{{ isos_pool_name }}"
             xml: '{{ lookup("template", "iso_storage_pool.xml") }}'
           when: isos_pool_name not in all_sps.list_pools         
-
           
         - name: Ensure ISO's storage pool is booting on startup.
           community.libvirt.virt_pool:
@@ -231,7 +219,7 @@
         - name: Ensure VyOs iso is downloaded.
           get_url:
             url: "{{ vyos_iso_link }}"
-            dest: /VMs/isos/vyos-1-4.iso
+            dest: /VMs/isos/vyos.iso
             checksum: "{{ vyos_iso_checksum }}"
             mode: '0777'
           register: router_iso
@@ -249,8 +237,8 @@
                           --graphics vnc
                           --hvm
                           --virt-type kvm
-                          --disk path=/VMs/images/vyos-router.qcow2,bus=virtio,size=10,pool={{ vms_pool_name  }}
-                          --cdrom /VMs/isos/vyos-1-4.iso
+                          --disk path=/VMs/images/{{ vyos_vm_name }}.qcow2,bus=virtio,size=10,pool={{ vms_pool_name  }}
+                          --cdrom /VMs/isos/vyos.iso
                           --noautoconsole
               when: vyos_vm_name not in all_vms.list_vms
               register: vm_created

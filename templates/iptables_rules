@@ -24,6 +24,14 @@ COMMIT
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
+# Allow communication from host
+-A INPUT -s 10.0.0.1/24 -j ACCEPT
+# -A INPUT -i {{ dummy_interface }} -j ACCEPT
+# -A FORWARD -i {{ dummy_interface }} -o {{ private_bridge_interface }} -j ACCEPT
+# -A FORWARD -i {{ dummy_interface }} -o {{ public_bridge_interface }} -j ACCEPT
+# allow dhcp and dns
+-A INPUT -i {{ public_bridge_interface }} -p udp -m udp -m multiport --dports 53,67 -j ACCEPT
+-A INPUT -i {{ public_bridge_interface }} -p tcp -m tcp -m multiport --dports 53,67 -j ACCEPT
 # Allow established traffic to the private subnet.
 -A FORWARD -d {{ public_network_ip }}/{{ ip_cidr_netmask }} -o {{ public_bridge_interface }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 -A FORWARD -d {{ private_network_ip }}/{{ ip_cidr_netmask }} -o {{ private_bridge_interface }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
@@ -33,9 +41,6 @@ COMMIT
 # Allow traffic between virtual machines.
 -A FORWARD -i {{ private_bridge_interface }} -o {{ private_bridge_interface }} -j ACCEPT
 -A FORWARD -i {{ public_bridge_interface }} -o {{ public_bridge_interface }} -j ACCEPT
-# allow dhcp and dns
--A INPUT -i {{ public_bridge_interface }} -p udp -m udp -m multiport --dports 53,67 -j ACCEPT
--A INPUT -i {{ public_bridge_interface }} -p tcp -m tcp -m multiport --dports 53,67 -j ACCEPT
 # Reject everything else.
 -A FORWARD -i {{ public_bridge_interface }} -j REJECT --reject-with icmp-port-unreachable
 -A FORWARD -o {{ public_bridge_interface }} -j REJECT --reject-with icmp-port-unreachable
