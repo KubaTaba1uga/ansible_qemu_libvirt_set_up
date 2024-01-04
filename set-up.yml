@@ -18,9 +18,9 @@
     vyos_vm_name: VyOs-router
       
   tasks:
-    - name: Run the equivalent of "apt-get update".
-      ansible.builtin.apt:
-        update_cache: yes
+    # - name: Run the equivalent of "apt-get update".
+    #   ansible.builtin.apt:
+    #     update_cache: yes
     
     - name: Configure networking.
       block:
@@ -250,29 +250,29 @@
                 autostart: true
 
             - name: Configure router VM.
-              when: vm_created.changed
+              # when: vm_created.changed
               block:
-                - name: Copy router installation script.
-                  template:
-                    src: "./templates/install_vyos.sh"
-                    dest: "/VMs/install_vyos.sh"
-                    mode: '0777'        
+                # - name: Copy router installation script.
+                #   template:
+                #     src: "./templates/install_vyos.sh"
+                #     dest: "/VMs/install_vyos.sh"
+                #     mode: '0777'        
 
-                - name: Run router installation script.
-                  command: "/VMs/install_vyos.sh"
+                # - name: Run router installation script.
+                #   command: "/VMs/install_vyos.sh"
 
-                - name: Waiting for router VM to reboot.
-                  pause: seconds=5
+                # - name: Waiting for router VM to reboot.
+                #   pause: seconds=5
 
-                - name: Ensure router VM is booting on startup.
-                  community.libvirt.virt:
-                    name: "{{ vyos_vm_name }}"
-                    autostart: true
+                # - name: Ensure router VM is booting on startup.
+                #   community.libvirt.virt:
+                #     name: "{{ vyos_vm_name }}"
+                #     autostart: true
 
-                - name: Ensure router VM is up.
-                  community.libvirt.virt:
-                    name: "{{ vyos_vm_name }}"
-                    state: running
+                # - name: Ensure router VM is up.
+                #   community.libvirt.virt:
+                #     name: "{{ vyos_vm_name }}"
+                #     state: running
 
                 - name: Copy router's configuration script.
                   template:
@@ -280,8 +280,8 @@
                     dest: "/VMs/configure_vyos.sh"
                     mode: '0777'        
 
-                - name: Run VyOs configuration script.
-                  command: "/VMs/configure_vyos.sh"
+                # - name: Run VyOs configuration script.
+                #   command: "/VMs/configure_vyos.sh"
 
             - name: Ensure host's dns is configured properly.
               block:
